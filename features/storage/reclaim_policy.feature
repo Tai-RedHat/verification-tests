@@ -4,8 +4,9 @@ Feature: Persistent Volume reclaim policy tests
   @admin
   @singlenode
   @proxy @noproxy @disconnected @connected
-  @heterogeneous @arm64 @amd64
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+    @s390x @ppc64le @heterogeneous @arm64 @amd64
+  @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @storage
   Scenario Outline: Persistent volume with RWO access mode and Delete policy
     Given I have a project
     And I have a 1 GB volume and save volume id in the :vid clipboard
@@ -43,12 +44,14 @@ Feature: Persistent Volume reclaim policy tests
     Given I switch to cluster admin pseudo user
     And I wait for the resource "pv" named "<%= pv.name %>" to disappear within 1200 seconds
 
+    @rosa @osd_ccs @aro
     @gcp-ipi
     @gcp-upi
     Examples:
       | case_id          | storage_type      | volume_name | path | file                |
       | OCP-9949:Storage | gcePersistentDisk | pdName      | gce  | pv-default-rwo.json | # @case_id OCP-9949
 
+    @rosa @osd_ccs @aro
     @aws-ipi
     @aws-upi
     Examples:
@@ -57,6 +60,8 @@ Feature: Persistent Volume reclaim policy tests
 
     @openstack-ipi
     @openstack-upi
+    @hypershift-hosted
+    @critical
     Examples:
       | case_id          | storage_type | volume_name | path   | file                |
       | OCP-9944:Storage | cinder       | volumeID    | cinder | pv-rwx-default.json | # @case_id OCP-9944

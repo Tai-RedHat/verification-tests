@@ -5,7 +5,7 @@ Feature: eventrouter related test
   # @author qitang@redhat.com
   @admin
   @destructive
-  @4.12 @4.11 @4.10 @4.6
+  @4.14 @4.13 @4.12 @4.11 @4.10 @4.6
   Scenario Outline: The Openshift Events be parsed
     Given I switch to the first user
     Given I create a project with non-leading digit name
@@ -16,6 +16,8 @@ Feature: eventrouter related test
     Given logging eventrouter is installed in the cluster
     Given a pod becomes ready with labels:
       | component=eventrouter |
+    And I wait up to 180 seconds for the steps to pass:
+    """
     When I run the :logs admin command with:
       | resource_name | <%= pod.name %>   |
       | namespace     | openshift-logging |
@@ -25,6 +27,7 @@ Feature: eventrouter related test
       | "verb":  |
       | "event": |
       | "reason" |
+    """
     Given I wait for the "<index_name>" index to appear in the ES pod with labels "es-node-master=true"
     And I wait up to 300 seconds for the steps to pass:
     """
@@ -41,10 +44,12 @@ Feature: eventrouter related test
 
     @singlenode
     @proxy @noproxy @connected
-    @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-    @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+    @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+    @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
     @network-ovnkubernetes @network-openshiftsdn
+    @hypershift-hosted
+    @logging5.6 @logging5.7 @logging5.8
+    @critical
     Examples:
     | case_id           | index_name  |
-    | OCP-25899:Logging | .operations | # @case_id OCP-25899
     | OCP-29738:Logging | infra       | # @case_id OCP-29738

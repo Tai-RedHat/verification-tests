@@ -3,12 +3,13 @@ Feature: SDN externalIP compoment upgrade testing
   # @author weliang@redhat.com
   @admin
   @upgrade-prepare
-  @4.12 @4.11 @4.10 @4.9
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
   @upgrade
   @network-ovnkubernetes @network-openshiftsdn
   @proxy @noproxy @disconnected @connected
+  @hypershift-hosted
+  @4.16 @4.15 @4.14 @4.13 @4.12 @4.11 @4.10 @4.9
   Scenario: Check the externalIP works well after upgrade - prepare
     Given I switch to cluster admin pseudo user
     And I run the :new_project client command with:
@@ -43,21 +44,26 @@ Feature: SDN externalIP compoment upgrade testing
     And evaluation of `pod.name` is stored in the :pod1name clipboard
 
     # Curl externalIP:portnumber should pass
+    And evaluation of `cb.hostip.include?(":") ? "[#{cb.hostip}]" : cb.hostip` is stored in the :hostip_url clipboard
+    And I wait up to 60 seconds for the steps to pass:
+    """
     When I execute on the "<%= cb.pod1name %>" pod:
-      | /usr/bin/curl | --connect-timeout | 10 | <%= cb.hostip %>:27017 |
+      | /usr/bin/curl | --connect-timeout | 10 | <%= cb.hostip_url %>:27017 |
     Then the output should contain:
       | Hello OpenShift! |
+    """
 
   # @author weliang@redhat.com
   # @case_id OCP-44790
   @admin
   @upgrade-check
-  @4.12 @4.11 @4.10 @4.9
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+  @4.16 @4.15 @4.14 @4.13 @4.12 @4.11 @4.10 @4.9
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
   @upgrade
   @network-ovnkubernetes @network-openshiftsdn
   @proxy @noproxy @disconnected @connected
+  @hypershift-hosted
   Scenario: Check the externalIP works well after upgrade
     Given I switch to cluster admin pseudo user
     # Get the external ip from  service
@@ -68,8 +74,9 @@ Feature: SDN externalIP compoment upgrade testing
     And evaluation of `pod.name` is stored in the :pod1name clipboard
 
     # Curl externalIP:portnumber should pass
+    And evaluation of `cb.hostip.include?(":") ? "[#{cb.hostip}]" : cb.hostip` is stored in the :hostip_url clipboard
     When I execute on the "<%= cb.pod1name %>" pod:
-      | /usr/bin/curl | --connect-timeout | 10 | <%= cb.hostip %>:27017 |
+      | /usr/bin/curl | --connect-timeout | 10 | <%= cb.hostip_url %>:27017 |
     Then the output should contain:
       | Hello OpenShift! |
 

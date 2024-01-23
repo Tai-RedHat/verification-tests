@@ -3,12 +3,13 @@
   # @author weliang@redhat.com
   @admin
   @upgrade-prepare
-  @4.12 @4.11 @4.10 @4.9
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
   @upgrade
   @network-ovnkubernetes @network-openshiftsdn
   @proxy @noproxy @disconnected @connected
+  @hypershift-hosted
+  @4.16 @4.15 @4.14 @4.13 @4.12 @4.11 @4.10 @4.9
   Scenario: Check the multicast works well after upgrade - prepare
     # create some multicast testing pods
     Given I switch to cluster admin pseudo user
@@ -76,7 +77,7 @@
       | netstat | -ng |
     Then the step should succeed
     And the output should match:
-      | eth0\s+1\s+232.43.211.234 |
+      | eth0\s+1\s+(232.43.211.234\|ff3e::4321:1234) |
     """
     And I wait up to 20 seconds for the steps to pass:
     """
@@ -84,8 +85,8 @@
       | cat | /tmp/p3.log |
     Then the step should succeed
     And the output should match:
-      | <%= cb.pod1ip %>.*joined \(S,G\) = \(\*, 232.43.211.234\), pinging |
-      | <%= cb.pod2ip %>.*joined \(S,G\) = \(\*, 232.43.211.234\), pinging |
+      | <%= cb.pod1ip %>.*joined \(S,G\) = \(\*, (232.43.211.234\|ff3e::4321:1234)\), pinging |
+      | <%= cb.pod2ip %>.*joined \(S,G\) = \(\*, (232.43.211.234\|ff3e::4321:1234)\), pinging |
     And the output should not match:
       | <%= cb.pod1ip %>.*multicast, xmt/rcv/%loss = 5/0/0% |
       | <%= cb.pod2ip %>.*multicast, xmt/rcv/%loss = 5/0/0% |
@@ -95,15 +96,16 @@
   # @case_id OCP-44636
   @admin
   @upgrade-check
-  @4.12 @4.11 @4.10 @4.9
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @4.16 @4.15 @4.14 @4.13 @4.12 @4.11 @4.10 @4.9
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
   @upgrade
   @network-ovnkubernetes @network-openshiftsdn
   @proxy @noproxy @disconnected @connected
+  @hypershift-hosted
   Scenario: Check the multicast works well after upgrade
-    Given the cluster is not migration from sdn plugin
     Given I switch to cluster admin pseudo user
+    Given the cluster is not migration from sdn plugin
     When I use the "multicast-upgrade" project
     Given 3 pods become ready with labels:
       | name=mcast-pods |
@@ -157,7 +159,7 @@
       | netstat | -ng |
     Then the step should succeed
     And the output should match:
-      | eth0\s+1\s+232.43.211.234 |
+      | eth0\s+1\s+(232.43.211.234\|ff3e::4321:1234) |
     """
     And I wait up to 20 seconds for the steps to pass:
     """
@@ -165,8 +167,8 @@
       | cat | /tmp/p3.log |
     Then the step should succeed
     And the output should match:
-      | <%= cb.pod1ip %>.*joined \(S,G\) = \(\*, 232.43.211.234\), pinging |
-      | <%= cb.pod2ip %>.*joined \(S,G\) = \(\*, 232.43.211.234\), pinging |
+      | <%= cb.pod1ip %>.*joined \(S,G\) = \(\*, (232.43.211.234\|ff3e::4321:1234)\), pinging |
+      | <%= cb.pod2ip %>.*joined \(S,G\) = \(\*, (232.43.211.234\|ff3e::4321:1234)\), pinging |
     And the output should not match:
       | <%= cb.pod1ip %>.*multicast, xmt/rcv/%loss = 5/0/0% |
       | <%= cb.pod2ip %>.*multicast, xmt/rcv/%loss = 5/0/0% |

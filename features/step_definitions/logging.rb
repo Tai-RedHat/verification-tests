@@ -7,7 +7,8 @@ Given /^logging service has been installed successfully$/ do
   if env.version_cmp('4.5', user: user) < 0
     example_cr = "<%= BushSlicer::HOME %>/testdata/logging/clusterlogging/example.yaml"
   else
-    example_cr = "<%= BushSlicer::HOME %>/testdata/logging/clusterlogging/example_indexmanagement.yaml"
+    step %Q/the correct directory name of clusterlogging file is stored in the :cl_dir clipboard/
+    example_cr = "<%= BushSlicer::HOME %>/testdata/logging/clusterlogging/<%= cb.cl_dir %>/example_indexmanagement.yaml"
   end
   step %Q/logging operators are installed successfully/
   step %Q/I create clusterlogging instance with:/, table(%{
@@ -31,7 +32,10 @@ Given /^logging operators are installed successfully$/ do
   step %Q/I switch to cluster admin pseudo user/
   step %Q/evaluation of `cluster_version('version').version` is stored in the :ocp_cluster_version clipboard/
 
-  unless project('openshift-operators-redhat').exists?
+  if project('openshift-operators-redhat').exists?
+    @result = admin.cli_exec(:label, resource: "namespace", name: "openshift-operators-redhat", key_val: 'openshift.io/cluster-monitoring=true', overwrite: true)
+    raise "Can't add label openshift.io/cluster-monitoring=true to namespace openshift-operators-redhat" unless @result[:success]
+  else
     eo_namespace_yaml = "#{BushSlicer::HOME}/testdata/logging/eleasticsearch/deploy_via_olm/01_eo-project.yaml"
     @result = admin.cli_exec(:create, f: eo_namespace_yaml)
     raise "Error creating namespace" unless @result[:success]
@@ -77,7 +81,7 @@ Given /^logging operators are installed successfully$/ do
         raise "Error creating subscription for elasticsearch" unless @result[:success]
       else
         # create subscription in "openshift-operators-redhat" namespace:
-        sub_elasticsearch_yaml ||= "#{BushSlicer::HOME}/testdata/logging/eleasticsearch/deploy_via_olm/4.2/eo-sub-template.yaml"
+        sub_elasticsearch_yaml ||= "#{BushSlicer::HOME}/testdata/logging/eleasticsearch/deploy_via_olm/04_eo-sub-template.yaml"
         step %Q/I process and create:/, table(%{
           | f | #{sub_elasticsearch_yaml} |
           | p | SOURCE=#{cb.eo_catsrc}    |
@@ -96,7 +100,10 @@ Given /^logging operators are installed successfully$/ do
   step %Q/elasticsearch operator is ready/
 
   # Create namespace
-  unless project('openshift-logging').exists?
+  if project('openshift-logging').exists?
+    @result = admin.cli_exec(:label, resource: "namespace", name: "openshift-logging", key_val: 'openshift.io/cluster-monitoring=true', overwrite: true)
+    raise "Can't add label openshift.io/cluster-monitoring=true to namespace openshift-logging" unless @result[:success]
+  else
     namespace_yaml = "#{BushSlicer::HOME}/testdata/logging/clusterlogging/deploy_clo_via_olm/01_clo_ns.yaml"
     @result = admin.cli_exec(:create, f: namespace_yaml)
     raise "Error creating namespace" unless @result[:success]
@@ -104,18 +111,25 @@ Given /^logging operators are installed successfully$/ do
 
   step %Q/I use the "openshift-logging" project/
   unless deployment('cluster-logging-operator').exists?
+    step %Q/I use the "openshift-marketplace" project/
+    # first check packagemanifest exists for cluster-logging
+    raise "Required packagemanifest 'cluster-logging' no found!" unless package_manifest('cluster-logging').exists?
+    step %Q/cluster-logging catalog source name is stored in the :clo_catsrc clipboard/
+    step %Q/cluster-logging channel name is stored in the :clo_channel clipboard/
+
+    step %Q/I use the "openshift-logging" project/
     unless operator_group('openshift-logging').exists?
-      clo_operator_group_yaml ||= "#{BushSlicer::HOME}/testdata/logging/clusterlogging/deploy_clo_via_olm/02_clo_og.yaml"
+      # start from logging 5.8, deploy CLO to watch all namespaces
+      if cb.clo_channel == "stable" || ((cb.clo_channel.include? "-") && (cb.clo_channel.split('-')[1].split('.')[0].to_i >= 5) && (cb.clo_channel.split('-')[1].split('.')[1].to_i >=8))
+        clo_operator_group_yaml = "#{BushSlicer::HOME}/testdata/logging/clusterlogging/deploy_clo_via_olm/02_clo_og_all_namespaces.yaml"
+      else
+        clo_operator_group_yaml = "#{BushSlicer::HOME}/testdata/logging/clusterlogging/deploy_clo_via_olm/02_clo_og.yaml"
+      end
       @result = admin.cli_exec(:create, f: clo_operator_group_yaml)
       raise "Error creating operatorgroup" unless @result[:success]
     end
 
     unless subscription('cluster-logging').exists?
-      step %Q/I use the "openshift-marketplace" project/
-      # first check packagemanifest exists for cluster-logging
-      raise "Required packagemanifest 'cluster-logging' no found!" unless package_manifest('cluster-logging').exists?
-      step %Q/cluster-logging catalog source name is stored in the :clo_catsrc clipboard/
-      step %Q/cluster-logging channel name is stored in the :clo_channel clipboard/
       step %Q/I use the "openshift-logging" project/
       if cb.ocp_cluster_version.include? "4.1."
         # create catalogsourceconfig and subscription for cluster-logging-operator
@@ -127,7 +141,7 @@ Given /^logging operators are installed successfully$/ do
         raise "Error creating subscription for cluster_logging" unless @result[:success]
       else
         # create subscription in `openshift-logging` namespace:
-        sub_logging_yaml ||= "#{BushSlicer::HOME}/testdata/logging/clusterlogging/deploy_clo_via_olm/4.2/clo-sub-template.yaml"
+        sub_logging_yaml ||= "#{BushSlicer::HOME}/testdata/logging/clusterlogging/deploy_clo_via_olm/03_clo_sub.yaml"
         step %Q/I process and create:/, table(%{
           | f | #{sub_logging_yaml}       |
           | p | SOURCE=#{cb.clo_catsrc}   |
@@ -397,6 +411,12 @@ Given /^(cluster-logging|elasticsearch-operator) channel name is stored in the#{
   if (logging_envs.empty?) || (envs.nil?) || (envs[:channel].nil?)
     version = cluster_version('version').version.split('-')[0].split('.').take(2).join('.')
     case version
+    when '4.15'
+      cb[cb_name] = "stable"
+    when '4.14'
+      cb[cb_name] = "stable-5.8"
+    when '4.13'
+      cb[cb_name] = "stable-5.7"
     when '4.12'
       cb[cb_name] = "stable-5.6"
     when '4.11'
@@ -504,7 +524,7 @@ Given /^logging eventrouter is installed in the cluster$/ do
 
   image_version = ""
   # for logging 5.2 and later, use image tag v0.3.0/v0.4.0
-  if (clo_version.include? "5.6") || (clo_version.include? "5.5") || (clo_version.include? "5.4")
+  if (clo_version.include? "5.7") || (clo_version.include? "5.6") || (clo_version.include? "5.5") || (clo_version.include? "5.4")
     image_version = "0.4.0"
   elsif (clo_version.include? "5.3") || (clo_version.include? "5.2")
     image_version = "0.3.0"
@@ -788,7 +808,11 @@ Given /^I make sure the logging operators match the cluster version$/ do
   step %Q/I use the "openshift-operators-redhat" project/
   eo_current_channel = subscription("elasticsearch-operator").channel(cached: false)
   eo_current_catsrc = subscription("elasticsearch-operator").source
-  if cb.eo_channel != eo_current_channel || cb.eo_catsrc != eo_current_catsrc
+  # in https://gitlab.cee.redhat.com/aosqe/jenkins-jcasc-n/-/blob/master/scripts/OCPQE-11466/upgrade_cluster_logging.sh#L9-10
+  # the channel is set to stable-5.6 when testing on OCP 4.12
+  # to avoid hitting issues like https://issues.redhat.com//browse/OCPQE-8932
+  # skip upgrade when current channel is stable-5.6
+  if eo_current_channel != "stable-5.6" && (cb.eo_channel != eo_current_channel || cb.eo_catsrc != eo_current_catsrc)
     upgrade_eo = true
     step %Q/I upgrade the operator with:/, table(%{
       | namespace    | openshift-operators-redhat |
@@ -804,7 +828,8 @@ Given /^I make sure the logging operators match the cluster version$/ do
   step %Q/I use the "openshift-logging" project/
   clo_current_channel = subscription("cluster-logging").channel(cached: false)
   clo_current_catsrc = subscription("cluster-logging").source
-  if clo_current_channel != cb.clo_channel || cb.clo_catsrc != clo_current_catsrc
+  # skip upgrade when current channel is stable-5.6
+  if clo_current_channel != "stable-5.6" && (clo_current_channel != cb.clo_channel || cb.clo_catsrc != clo_current_catsrc)
     upgrade_clo = true
     step %Q/I upgrade the operator with:/, table(%{
       | namespace    | openshift-logging |
@@ -890,6 +915,14 @@ Given /^I deploy kafka in the #{QUOTED} project via amqstream operator$/ do | pr
   })
   raise "Error subscript amqstreams" unless @result[:success]
 
+  @result = admin.cli_exec(:get, resource: "machineconfig", resource_name: "99-worker-fips")
+  unless @result[:response].include? "NotFound"
+    patch_json = {"spec": {"config": {"env": [{"name": "FIPS_MODE", "value": "disabled"}]}}}
+    patch_opts = {resource: "subscription", resource_name: "amq-streams", p: patch_json.to_json, n: project_name, type: "merge"}
+    @result = admin.cli_exec(:patch, **patch_opts)
+    raise "Patch failed with #{@result[:response]}" unless @result[:success]
+  end
+
   step %Q/a pod becomes ready with labels:/, table(%{
     | name=amq-streams-cluster-operator |
   })
@@ -915,7 +948,7 @@ Given /^I get(?: (\d+))? records from the #{QUOTED} kafka topic in the #{QUOTED}
   record_num = record_num ? record_num.to_str : "10"
   job_name=rand_str(8, :dns)
   step %Q/I use the "#{project_name}" project/
-  kafka_image=stateful_set('my-cluster-kafka').containers_spec(user: user)[0].image
+  kafka_image=pod('my-cluster-kafka-0').container_specs(user: user)[0].image
   teardown_add {
     admin.cli_exec(:delete, object_type: 'job', object_name_or_id: job_name, n: project_name)
   }
@@ -975,7 +1008,7 @@ Given /^I get(?: (\d+))? logs from the #{QUOTED} kafka consumer job in the #{QUO
 end
 
 # deploy external elasticsearch server
-# version: 6.8 or 7.16
+# version: 6.8 or 7.17
 # project_name: where the external ES deployed
 # scheme: http or https
 # client_auth: true or false, if `true`, must provide client crendentials
@@ -983,7 +1016,7 @@ end
 # secret_name: the name of the pipeline secret for the fluentd to use
 Given /^external elasticsearch server is deployed with:$/ do | table |
   opts = opts_array_to_hash(table.raw)
-  version = opts[:version] # 6.8 or 7.16
+  version = opts[:version] # 6.8 or 7.17
   project_name = opts[:project_name]
   scheme = opts[:scheme]
   client_auth = opts[:client_auth]
@@ -993,8 +1026,8 @@ Given /^external elasticsearch server is deployed with:$/ do | table |
   secret_name = opts[:secret_name]
   step %Q/I use the "#{project_name}" project/
 
-  unless ["6.8", "7.16"].include? version
-    raise "Unsupported ES version: #{version}, we only support ES 6.8 and 7.16!"
+  unless ["6.8", "7.17"].include? version
+    raise "Unsupported ES version: #{version}, we only support ES 6.8 and 7.17!"
   end
 
   if scheme == "https"
@@ -1067,13 +1100,11 @@ Given /^external elasticsearch server is deployed with:$/ do | table |
     cm_patch << ["p", "USERNAME=#{username}"] << ["p", "PASSWORD=#{password}"]
   end
 
-  if version == "6.8"
-    # get the arch of node
-    @result = admin.cli_exec(:get, resource: "nodes", l: "kubernetes.io/os=linux", output: "jsonpath={.items[0].status.nodeInfo.architecture}")
-    # set xpack.ml.enable to false when testing ES 6.8 on arm64 cluster
-    if @result[:response] == "arm64"
-      cm_patch << ["p", "MACHINE_LEARNING=false"]
-    end
+  # get the arch of node
+  @result = admin.cli_exec(:get, resource: "nodes", l: "kubernetes.io/os=linux", output: "jsonpath={.items[0].status.nodeInfo.architecture}")
+  # set xpack.ml.enable to false when the architecture is not amd64
+  if @result[:response] != "amd64"
+    cm_patch << ["p", "MACHINE_LEARNING=false"]
   end
 
   @result = admin.cli_exec(:process, opts_array_process(cm_patch.uniq))
@@ -1193,6 +1224,9 @@ Given /^I have(?: "(\w+)")? log pod in project #{QUOTED}$/ do | log_type, projec
       step %Q/I run the :new_app client command with:/,table(%{
         | file | #{template_file} |
       })
+      step %Q/a pod becomes ready with labels:/, table(%{
+        | run=centos-logtest|
+      })
     end
 end
 
@@ -1275,14 +1309,15 @@ Given /^I have clusterlogging with(?: (\d+))? persistent storage ES$/ do |es_num
       if(es_num==1)
         redundancy_policy="ZeroRedundancy"
       end
-      step %Q/default storageclass is stored in the :default_sc clipboard/
-      step %Q|I obtain test data file "logging/clusterlogging/clusterlogging-storage-template.yaml"|
+      step %Q/I get storageclass from cluster and store it in the :default_sc clipboard/
+      step %Q/the correct directory name of clusterlogging file is stored in the :cl_dir clipboard/
+      cr = "<%= BushSlicer::HOME %>/testdata/logging/clusterlogging/<%= cb.cl_dir %>/clusterlogging-storage-template.yaml"
       step %Q/I create clusterlogging instance with:/, table(%{
-        | crd_yaml          | clusterlogging-storage-template.yaml |
-        | storage_class     | <%= cb.default_sc.name %>            |
-        | storage_size      | 20Gi                                 |
-        | es_node_count     | #{ es_num }                          |
-        | redundancy_policy | #{ redundancy_policy }               |
+        | crd_yaml          | #{cr}                     |
+        | storage_class     | <%= cb.default_sc.name %> |
+        | storage_size      | 20Gi                      |
+        | es_node_count     | #{ es_num }               |
+        | redundancy_policy | #{ redundancy_policy }    |
       })
     end
 end
@@ -1364,19 +1399,64 @@ Given /^I (check|record) all pods logs in the#{OPT_QUOTED} project(?: in last (\
       end
       if action == "check"
         # read logs line by line
-        # ignore errors in https://issues.redhat.com/browse/LOG-2674 and https://issues.redhat.com/browse/LOG-2702
+        # ignore errors in https://issues.redhat.com/browse/LOG-2702
+        ignored_messages = []
         case container.name
-        when "logfilesmetricexporter"
-          log = check_log(@result[:response], error_strings, ["can't remove non-existent inotify watch for"])
+        when "cluster-logging-operator"
+          ignored_messages = ["the object has been modified"]
         when "kibana"
-          log = check_log(@result[:response], error_strings, ["java.lang.UnsupportedOperationException"])
+          ignored_messages = ["java.lang.UnsupportedOperationException"]
+        when "elasticsearch"
+          ignored_messages = ["INFO", "WARN", "DEBUG"]
+        when "proxy"
+          ignored_messages = ["proxy error"]
         when "collector"
-          log = check_log(@result[:response], error_strings, ["Timeout flush: kubernetes.var.log"])
-        else
-          log = check_log(@result[:response], error_strings, nil)
+          ignored_messages = ["Timeout flush: kubernetes.var.log"]
+        when "logfilesmetricexporter"
+          ignored_messages = ["unsupported cipher suite"]
+        when "elasticsearch-operator"
+          ignored_messages = ["failed decoding raw response body into `map[string]estypes.GetIndexTemplate`", "failed to get list of index templates"]
         end
+        log = check_log(@result[:response], error_strings, ignored_messages)
         raise "find error/failure log in #{pod.name}/#{container.name}: #{log}" unless log.empty?
       end
     end
   end
+end
+
+Given /^I get storageclass from cluster and store it in the#{OPT_SYM} clipboard$/ do | sc |
+  sc = 'sc' unless sc
+  has_default_sc = false
+  _sc = ''
+  storage_classes = BushSlicer::StorageClass.list(user: user)
+  raise "Unable to get storage class " unless storage_classes.count > 0
+  storage_classes.each do | storage_class |
+    if storage_class.default?
+      has_default_sc = true
+      _sc = storage_class
+      break
+    end
+  end
+
+  if !has_default_sc
+    _sc = storage_classes.first
+  end
+
+  cb[sc] = _sc
+  cache_resources _sc
+end
+
+Given /^the correct directory name of clusterlogging file is stored in the#{OPT_SYM} clipboard$/ do | directory |
+  ensure_admin_tagged
+  step %Q/I switch to cluster admin pseudo user/
+  step %Q/I use the "openshift-logging" project/
+  directory ||= "directory"
+  clo_csv_version = subscription("cluster-logging").current_csv(cached: false).split(".", 2).last.split(/[A-Za-z]/).last
+
+  directory_name=""
+  if Integer(clo_csv_version.split('.')[0]) >= 5 && Integer(clo_csv_version.split('.')[1]) >= 7
+    directory_name="5.7"
+  end
+
+  cb[directory] = directory_name
 end

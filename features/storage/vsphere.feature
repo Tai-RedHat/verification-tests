@@ -6,8 +6,9 @@ Feature: vSphere test scenarios
   @upgrade-sanity
   @singlenode
   @proxy @noproxy @disconnected @connected
-  @heterogeneous @arm64 @amd64
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+    @s390x @ppc64le @heterogeneous @arm64 @amd64
+  @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @storage
   Scenario Outline: Dynamically provision a vSphere volume with different disk formats
     Given I have a project
     Given I obtain test data file "storage/vsphere/storageclass.yml"
@@ -61,6 +62,8 @@ Feature: vSphere test scenarios
 
     @vsphere-ipi
     @vsphere-upi
+    @hypershift-hosted
+    @critical
     Examples:
       | case_id           | disk_format      |
       | OCP-13386:Storage | thin             | # @case_id OCP-13386
@@ -70,13 +73,16 @@ Feature: vSphere test scenarios
   # @author jhou@redhat.com
   # @case_id OCP-13389
   @admin
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
   @vsphere-ipi
   @vsphere-upi
   @upgrade-sanity
   @singlenode
   @proxy @noproxy @disconnected @connected
-  @heterogeneous @arm64 @amd64
+  @s390x @ppc64le @heterogeneous @arm64 @amd64
+  @hypershift-hosted
+  @critical
+  @storage
   Scenario: OCP-13389:Storage Dynamically provision a vSphere volume with invalid disk format
     Given I have a project
     Given I obtain test data file "storage/vsphere/storageclass.yml"

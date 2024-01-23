@@ -13,6 +13,20 @@ Given(/^I have an IPI deployment$/) do
       logger.warn "We will skip this scenario"
       skip_this_scenario
     end
+
+  machine_sets = BushSlicer::MachineSetMachineOpenshiftIo.list(user: admin, project: project("openshift-machine-api"))
+    if machine_sets.length == 0
+      logger.warn "machineset does not exist, tests running by copying existing machinesets will fail."
+      logger.warn "We will skip this scenario, even though it is IPI deployment"
+      skip_this_scenario
+    end
+    
+  rhel_nodes = BushSlicer::Node.get_labeled("node.openshift.io/os_id=rhel", user: admin)
+    if rhel_nodes.length > 0
+      logger.warn "There are rhel nodes and rhel nodes may created by machineset, tests running by copying existing machinesets will fail."
+      logger.warn "We will skip this scenario, even though it is IPI deployment"
+      skip_this_scenario
+    end 
   end
 end
 
@@ -20,12 +34,16 @@ Given(/^I have an UPI deployment and machinesets are enabled$/) do
   # In an UPI deployment, if enabled machinesets, machines should be linked to nodes
   machines = BushSlicer::MachineMachineOpenshiftIo.list(user: admin, project: project("openshift-machine-api"))
   if machines.length == 0
-    raise "Machinesets are not enabled, there are no machines"
+    logger.warn "Machinesets are not enabled, there are no machines"
+    logger.warn "We will skip this scenario"
+    skip_this_scenario
   end
 
   machines.each do | machine |
     if machine.node_name.nil?
-      raise "machine #{machine.name} does not have nodeRef."
+      logger.warn "machine #{machine.name} has no node ref."
+      logger.warn "We will skip this scenario"
+      skip_this_scenario
     end
   end
 end
@@ -71,6 +89,15 @@ Given(/^I wait for the node of machine_machine_openshift_io(?: named "(.+)")? to
   end
 
   cb["new_node"] = node_name
+end
+
+Then(/admin check that cluster does not have empty public zone$/) do
+  ensure_admin_tagged
+
+  if dns("cluster").public_zone == nil
+     logger.warn "The scenario will be skipped because publicZone is empty, default values won't work"
+     skip_this_scenario
+   end
 end
 
 Then(/^admin ensures machine number is restored after scenario$/) do

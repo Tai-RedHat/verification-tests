@@ -115,6 +115,55 @@ module BushSlicer
         }
       end
 
+      def sync_run(project_id, run_id, with_cases: "full")
+        params = with_cases ? {test_cases: with_cases} : {}
+        Http.request_with_retry(
+          method: :put,
+          url: "#{base_url}project/#{project_id}/run/#{run_id}/replace",
+          params: params,
+          raise_on_error: false,
+          read_timeout: 120,
+          **common_opts
+        )
+      end
+
+      # @input new_status can be a string or Hash.  The valid value for string
+      # are Waiting, Running, Rerun, Passed, Failed, Blocked.  For more info:
+      # https://gitlab.cee.redhat.com/aosqe/polarshift/-/blob/master/doc/API.adoc
+      def reset_run(project_id, run_id, new_status: 'Waiting')
+        # 1. get current run information from Polarshift
+        current_run_res = get_run_smart(project_id, run_id)['records']['TestRecord']
+        case_records = []
+        # 2. need to create the req.json that contains each testcase that will be needed to be reset
+        #    initially only support reset the entire run.  We can think about getting a selective reset
+        #    after we have  proven it to work.
+        current_run_res.each do |cr|
+          test_result = {}
+          case_id = cr.dig('test_case', 'id')
+          test_result['id'] = case_id
+          if new_status.is_a? Hash
+            new_case_status = new_status.dig(case_id)
+          else
+            new_case_status = new_status
+          end
+
+          if new_case_status
+            # we only add to the case_records if the user specify it in the status yaml
+            test_result['new'] = {'comment':  cr['comment']['content'], 'result': new_case_status,
+              'duration': 0.0, 'executed': Date.today.to_s }
+            test_result['current'] = {'comment':  cr['comment']['content'], 'result': cr['result'] }
+            case_records.append(test_result)
+          end
+        end
+        # 3. make API call to polarshift to update the run status for the cases
+        res = update_caseruns(project_id, run_id, case_records)
+        if res[:success]
+          logger.info("Run #{run_id} has been updated to '#{new_status}'")
+        else
+          logger.error("Failed to update #{run_id} to #{new_status} due to #{res[:response].to_s}")
+        end
+      end
+
       def get_run(project_id, run_id, with_cases: "automation")
         params = with_cases ? {test_cases: with_cases} : {}
         Http.request_with_retry(
@@ -176,14 +225,20 @@ module BushSlicer
       end
 
       def create_run_smart(timeout: 360, **opts)
-        res = create_run(**opts)
-        if res[:exitstatus] == 202
-          op_url = JSON.load(res[:response])["operation_result_url"]
-          logger.info "to check operation status manually, you can: " \
-            "curl '#{op_url}' -u user:thepassword"
-          pr = wait_op(url: op_url, timeout: timeout)
-        else
-          raise %Q{got status "#{res[:exitstatus]}" creating a new test run:\n#{res[:response]}}
+        for retries in 1..10 do
+          res = create_run(**opts)
+          if res[:exitstatus] == 202
+            op_url = JSON.load(res[:response])["operation_result_url"]
+            logger.info "to check operation status manually, you can: " \
+              "curl '#{op_url}' -u user:thepassword"
+            pr = wait_op(url: op_url, timeout: timeout)
+          else
+            raise %Q{got status "#{res[:exitstatus]}" creating a new test run:\n#{res[:response]}}
+          end
+          unless pr["status"] == "failed"
+            break
+          end
+          sleep 60
         end
 
         unless pr.dig("properties", "run_id")
@@ -374,7 +429,8 @@ module BushSlicer
           when "queued", "running"
             next
           when "failed"
-            raise "PolarShift operation failed:\n#{res["error"]}"
+            logger.warn "PolarShift operation failed:\n#{res["error"]}"
+            return res
           else
             raise "unknown operation status #{res["status"]}"
           end

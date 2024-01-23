@@ -5,10 +5,11 @@ Feature: env.feature
   @proxy
   @singlenode
   @noproxy @connected
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
   @network-ovnkubernetes @network-openshiftsdn
   @inactive
+  @critical
   Scenario: OCP-11543:BuildAPI Can set env vars on buildconfig with new-app --env and --env-file
     Given I have a project
     When I run the :new_app client command with:
@@ -18,7 +19,7 @@ Feature: env.feature
     And the "ruby-hello-world-1" build was created
     Given the "ruby-hello-world-1" build completed
     Given a pod becomes ready with labels:
-      |deployment=ruby-hello-world-1|
+      |deployment=ruby-hello-world|
     When I run the :set_env client command with:
       | resource | pods |
       | list     | true |
@@ -32,7 +33,7 @@ Feature: env.feature
     And the "ruby-hello-world-1" build was created
     Given the "ruby-hello-world-1" build completed
     Given a pod becomes ready with labels:
-      |deployment=ruby-hello-world-1|
+      |deployment=ruby-hello-world|
     When I run the :set_env client command with:
       | resource | pods |
       | list     | true |
@@ -50,7 +51,7 @@ Feature: env.feature
     And the "ruby-hello-world-1" build was created
     Given the "ruby-hello-world-1" build completed
     Given a pod becomes ready with labels:
-      |deployment=ruby-hello-world-1|
+      |deployment=ruby-hello-world|
     When I run the :set_env client command with:
       | resource | pods |
       | list     | true |
@@ -68,7 +69,7 @@ Feature: env.feature
     And the "ruby-hello-world-1" build was created
     Given the "ruby-hello-world-1" build completed
     Given a pod becomes ready with labels:
-      |deployment=ruby-hello-world-1|
+      |deployment=ruby-hello-world|
     When I run the :set_env client command with:
       | resource | pods |
       | list     | true |
@@ -78,14 +79,15 @@ Feature: env.feature
   # @author wewang@redhat.com
   # @case_id OCP-31247
   @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
   @upgrade-sanity
   @singlenode
   @proxy @noproxy @connected
   @network-ovnkubernetes @network-openshiftsdn
-  @heterogeneous @arm64 @amd64
+  @s390x @ppc64le @heterogeneous @arm64 @amd64
   @inactive
+  @critical
   Scenario: OCP-31247:BuildAPI Can set env vars on buildconfig with new-app --env and --env-file test
     Given I have a project
     When I run the :new_app client command with:

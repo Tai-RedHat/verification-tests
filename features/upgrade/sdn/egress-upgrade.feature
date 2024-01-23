@@ -3,14 +3,17 @@ Feature: Egress compoment upgrade testing
   # @author huirwang@redhat.com
   @admin
   @upgrade-prepare
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi
+  @4.9 @4.8 @4.7
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
   @noproxy @connected
   @network-ovnkubernetes @network-openshiftsdn
   @upgrade
   @heterogeneous @arm64 @amd64
+  @hypershift-hosted
+  @s390x @ppc64le @heterogeneous @arm64 @amd64
   Scenario: Check egressfirewall is functional post upgrade - prepare
+    Given the cluster is not proxy cluster 
     Given I switch to cluster admin pseudo user
     And I run the :new_project client command with:
       | project_name | egressfw-upgrade1 |
@@ -43,15 +46,16 @@ Feature: Egress compoment upgrade testing
   # @case_id OCP-44315
   @admin
   @upgrade-check
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+  @4.9 @4.8 @4.7
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
   @noproxy @connected
   @upgrade
   @network-ovnkubernetes @network-openshiftsdn
-  @heterogeneous @arm64 @amd64
+  @s390x @ppc64le @heterogeneous @arm64 @amd64
+  @hypershift-hosted
   Scenario: Check egressfirewall is functional post upgrade
-    Given the cluster is not migration from sdn plugin
+    Given the cluster is not proxy cluster 
     Given I switch to cluster admin pseudo user
     And I save egress type to the clipboard
     When I run the :get admin command with:
@@ -74,13 +78,15 @@ Feature: Egress compoment upgrade testing
   @admin
   @upgrade-prepare
   @network-ovnkubernetes
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7
+  @4.9 @4.8 @4.7
   @vsphere-ipi
   @vsphere-upi
   @qeci
   @upgrade
   @proxy @noproxy @disconnected @connected
   @heterogeneous @arm64 @amd64
+  @hypershift-hosted
+  @s390x @ppc64le @heterogeneous @arm64 @amd64
   Scenario: Check ovn egressip is functional post upgrade - prepare
     Given I switch to cluster admin pseudo user
     And I save ipecho url to the clipboard
@@ -133,16 +139,18 @@ Feature: Egress compoment upgrade testing
   @admin
   @upgrade-check
   @network-ovnkubernetes
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7
+  @4.9 @4.8 @4.7
   @vsphere-ipi
   @vsphere-upi
   @qeci
   @upgrade
   @proxy @noproxy @disconnected @connected
-  @heterogeneous @arm64 @amd64
+  @s390x @ppc64le @heterogeneous @arm64 @amd64
+  @hypershift-hosted
   Scenario: Check ovn egressip is functional post upgrade
     Given I save ipecho url to the clipboard
     Given I switch to cluster admin pseudo user
+    Given the cluster is not migration from sdn plugin
     When I use the "egressip-upgrade1" project
     Given status becomes :running of 1 pod labeled:
       | name=test-pods |
@@ -176,7 +184,7 @@ Feature: Egress compoment upgrade testing
   @admin
   @flaky
   @upgrade-prepare
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7
+  @4.9 @4.8 @4.7
   @vsphere-ipi
   @vsphere-upi
   @qeci
@@ -184,6 +192,8 @@ Feature: Egress compoment upgrade testing
   @network-openshiftsdn
   @proxy @noproxy @disconnected @connected
   @heterogeneous @arm64 @amd64
+  @hypershift-hosted
+  @s390x @ppc64le @heterogeneous @arm64 @amd64
   Scenario: Check sdn egressip is functional post upgrade - prepare
     Given the env is using "OpenShiftSDN" networkType
     Given I save ipecho url to the clipboard
@@ -249,16 +259,18 @@ Feature: Egress compoment upgrade testing
   @admin
   @flaky
   @upgrade-check
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7
+  @4.9 @4.8 @4.7
   @vsphere-ipi
   @vsphere-upi
   @qeci
   @upgrade
   @network-openshiftsdn
   @proxy @noproxy @disconnected @connected
-  @heterogeneous @arm64 @amd64
+  @s390x @ppc64le @heterogeneous @arm64 @amd64
+  @hypershift-hosted
   Scenario: Check sdn egressip is functional post upgrade
-    Given the cluster is not migration from sdn plugin		
+    Given I switch to cluster admin pseudo user
+    Given the cluster is not migration from ovn plugin
     Given the env is using "OpenShiftSDN" networkType
     Given I run the :get admin command with:
       | resource      | hostsubnet                                  |

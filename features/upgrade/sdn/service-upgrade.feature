@@ -3,13 +3,14 @@ Feature: service upgrade scenarios
   # @author zzhao@redhat.com
   @admin
   @upgrade-prepare
-  @4.12 @4.11 @4.10 @4.9 @4.8
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
   @proxy @noproxy @disconnected @connected
   @upgrade
   @network-ovnkubernetes @network-openshiftsdn
-  @heterogeneous @arm64 @amd64
+  @hypershift-hosted
+  @s390x @ppc64le @heterogeneous @arm64 @amd64
+  @4.16 @4.15 @4.14 @4.13 @4.12 @4.11 @4.10 @4.9 @4.8
   Scenario: Check the idle service works well after upgrade - prepare
     Given I switch to cluster admin pseudo user
     When I run the :new_project client command with:
@@ -36,16 +37,18 @@ Feature: service upgrade scenarios
   # @case_id OCP-44259
   @admin
   @upgrade-check
-  @4.12 @4.11 @4.10 @4.9 @4.8
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+  @4.16 @4.15 @4.14 @4.13 @4.12 @4.11 @4.10 @4.9 @4.8
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
   @proxy @noproxy @disconnected @connected
   @upgrade
   @network-ovnkubernetes @network-openshiftsdn
-  @heterogeneous @arm64 @amd64
+  @s390x @ppc64le @heterogeneous @arm64 @amd64
+  @hypershift-hosted
   Scenario: Check the idle service works well after upgrade
     Given I switch to cluster admin pseudo user
     When I use the "idle-upgrade" project
+    And the appropriate pod security labels are applied to the "idle-upgrade" namespace
     When I run the :get client command with:
       | resource | endpoints |
     Then the step should succeed
@@ -66,13 +69,14 @@ Feature: service upgrade scenarios
   # @author zzhao@redhat.com
   @admin
   @upgrade-prepare
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
   @proxy @noproxy @disconnected @connected
   @upgrade
   @network-ovnkubernetes @network-openshiftsdn @network-networkpolicy
-  @heterogeneous @arm64 @amd64
+  @hypershift-hosted
+  @s390x @ppc64le @heterogeneous @arm64 @amd64
+  @4.16 @4.15 @4.14 @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
   Scenario: Check the nodeport service works well after upgrade - prepare
     Given I switch to cluster admin pseudo user
     When I run the :new_project client command with:
@@ -86,6 +90,10 @@ Feature: service upgrade scenarios
     Then the step should succeed
     And a pod becomes ready with labels:
       | name=hello-pod |
+    And evaluation of `pod.name` is stored in the :podname clipboard
+    And evaluation of `pod(cb.podname).node_ip(user:user)` is stored in the :hostip clipboard
+    # if IP format is v6 include square brackets
+    And evaluation of `"<%= cb.hostip %>" =~ /:/ ? "[<%= cb.hostip %>]" : "<%= cb.hostip %>"` is stored in the :hostip clipboard
     When I obtain test data file "networking/nodeport_test_service.yaml"
     When I run oc create over "nodeport_test_service.yaml" replacing paths:
       | ["spec"]["ports"][0]["nodePort"] | <%= cb.port %> |
@@ -97,7 +105,6 @@ Feature: service upgrade scenarios
     Then the step should succeed
     And a pod becomes ready with labels:
       | name=test-pods |
-    And evaluation of `pod.node_ip` is stored in the :hostip clipboard
     When I execute on the pod:
       | curl | <%= cb.hostip %>:<%= cb.port %> |
     Then the step should succeed
@@ -108,20 +115,26 @@ Feature: service upgrade scenarios
   # @case_id OCP-44302
   @admin
   @upgrade-check
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+  @4.16 @4.15 @4.14 @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
   @proxy @noproxy @disconnected @connected
   @upgrade
   @network-ovnkubernetes @network-openshiftsdn @network-networkpolicy
-  @heterogeneous @arm64 @amd64
+  @s390x @ppc64le @heterogeneous @arm64 @amd64
+  @hypershift-hosted
   Scenario: Check the nodeport service works well after upgrade
     Given I switch to cluster admin pseudo user
     When I use the "nodeport-upgrade" project
     Given I use the "hello-pod" service
     And a pod becomes ready with labels:
+      | name=hello-pod |
+    And evaluation of `pod.name` is stored in the :podname clipboard
+    And evaluation of `pod(cb.podname).node_ip(user:user)` is stored in the :hostip clipboard
+    # if IP format is v6 include square brackets
+    And evaluation of `"<%= cb.hostip %>" =~ /:/ ? "[<%= cb.hostip %>]" : "<%= cb.hostip %>"` is stored in the :hostip clipboard
+    And a pod becomes ready with labels:
       | name=test-pods |
-    And evaluation of `pod.node_ip` is stored in the :hostip clipboard
     When I execute on the pod:
       | curl | <%= cb.hostip %>:<%= service.ports[0]["nodePort"] %> |
     Then the step should succeed

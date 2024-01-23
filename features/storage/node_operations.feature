@@ -5,8 +5,9 @@ Feature: Node operations test scenarios
   @destructive
   @upgrade-sanity
   @proxy @noproxy @disconnected @connected
-  @heterogeneous @arm64 @amd64
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+    @s390x @ppc64le @heterogeneous @arm64 @amd64
+  @4.16 @4.15 @4.14 @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @storage
   Scenario Outline: Drain a node that has cloud vendor volumes
     Given environment has at least 2 schedulable nodes
     And I have a project
@@ -38,12 +39,14 @@ Feature: Node operations test scenarios
     And a pod becomes ready with labels:
       | name=jenkins |
 
+    @rosa @osd_ccs @aro
     @gcp-ipi
     @gcp-upi
     Examples:
       | case_id           | cloud_provider |
       | OCP-15287:Storage | gcp            | # @case_id OCP-15287
 
+    @rosa @osd_ccs @aro
     @azure-ipi
     @azure-upi
     Examples:
@@ -62,6 +65,8 @@ Feature: Node operations test scenarios
       | case_id           | cloud_provider |
       | OCP-15276:Storage | cinder         | # @case_id OCP-15276
 
+    @hypershift-hosted
+    @critical
     Examples:
       | case_id           | cloud_provider |
       | OCP-15283:Storage | aws-ebs        | # @case_id OCP-15283

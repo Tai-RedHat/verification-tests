@@ -4,8 +4,9 @@ Feature: storageClass related feature
   @admin
   @singlenode
   @proxy @noproxy @disconnected @connected
-  @heterogeneous @arm64 @amd64
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+    @s390x @ppc64le @heterogeneous @arm64 @amd64
+  @4.16 @4.15 @4.14 @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @storage
   Scenario Outline: PVC modification after creating storage class
     Given I have a project
     Given I obtain test data file "storage/misc/pvc-without-annotations.json"
@@ -29,12 +30,14 @@ Feature: storageClass related feature
       | p             | {"metadata":{"annotations":{"volume.beta.kubernetes.io/storage-class":"<storage-class-name>"}}} |
     Then the expression should be true> @result[:success] == env.version_le("3.5", user: user)
 
+    @rosa @osd_ccs @aro
     @aws-ipi
     @aws-upi
     Examples:
       | case_id           | storage-class-name |
       | OCP-12269:Storage | gp2                | # @case_id OCP-12269
 
+    @rosa @osd_ccs @aro
     @gcp-ipi
     @gcp-upi
     Examples:
@@ -47,8 +50,10 @@ Feature: storageClass related feature
       | case_id           | storage-class-name |
       | OCP-12272:Storage | standard           | # @case_id OCP-12272
 
+    @rosa @osd_ccs @aro
     @azure-ipi
     @azure-upi
+    @hypershift-hosted
     Examples:
       | case_id           | storage-class-name |
       | OCP-13488:Storage | managed-premium    | # @case_id OCP-13488
@@ -60,8 +65,9 @@ Feature: storageClass related feature
   @upgrade-sanity
   @singlenode
   @proxy @noproxy @disconnected @connected
-  @heterogeneous @arm64 @amd64
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+    @s390x @ppc64le @heterogeneous @arm64 @amd64
+  @4.16 @4.15 @4.14 @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @storage
   Scenario Outline: storage class provisioner
     Given I have a project
     And admin clones storage class "sc-<%= project.name %>" from ":default" with:
@@ -97,6 +103,7 @@ Feature: storageClass related feature
     Given I switch to cluster admin pseudo user
     And I wait for the resource "pv" named "<%= pvc.volume_name %>" to disappear
 
+    @rosa @osd_ccs @aro
     @gcp-ipi
     @gcp-upi
     Examples:
@@ -104,8 +111,11 @@ Feature: storageClass related feature
       | OCP-11359:Storage | gce-pd      | pd-ssd      | us-central1-a | false      | 1Gi  | # @case_id OCP-11359
       | OCP-11640:Storage | gce-pd      | pd-standard | us-central1-a | false      | 2Gi  | # @case_id OCP-11640
 
+    @rosa @osd_ccs @aro
     @aws-ipi
     @aws-upi
+    @hypershift-hosted
+    @critical
     Examples:
       | case_id           | provisioner | type | zone       | is-default | size  |
       | OCP-10160:Storage | aws-ebs     | gp2  | us-east-1d | false      | 1Gi   | # @case_id OCP-10160
@@ -118,8 +128,9 @@ Feature: storageClass related feature
   @upgrade-sanity
   @singlenode
   @proxy @noproxy @disconnected @connected
-  @heterogeneous @arm64 @amd64
+  @s390x @ppc64le @heterogeneous @arm64 @amd64
   @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @storage
   Scenario Outline: New creation PVC failed when multiple classes are set as default
     Given I have a project
     Given I obtain test data file "storage/misc/storageClass.yaml"
@@ -155,12 +166,14 @@ Feature: storageClass related feature
     And the "mypvc1" PVC becomes :bound within 120 seconds
     And the "mypvc2" PVC becomes :bound within 120 seconds
 
+    @rosa @osd_ccs @aro
     @aws-ipi
     @aws-upi
     Examples:
       | case_id           | provisioner |
       | OCP-12226:Storage | aws-ebs     | # @case_id OCP-12226
 
+    @rosa @osd_ccs @aro
     @azure-ipi
     @azure-upi
     Examples:
@@ -173,6 +186,7 @@ Feature: storageClass related feature
       | case_id           | provisioner |
       | OCP-12227:Storage | cinder      | # @case_id OCP-12227
 
+    @rosa @osd_ccs @aro
     @gcp-ipi
     @gcp-upi
     Examples:
@@ -181,12 +195,15 @@ Feature: storageClass related feature
 
     @vsphere-ipi
     @vsphere-upi
+    @hypershift-hosted
+    @critical
     Examples:
       | case_id           | provisioner    |
       | OCP-24259:Storage | vsphere-volume | # @case_id OCP-24259
 
   # @author lxia@redhat.com
   @inactive
+  @storage
   Scenario Outline: New created PVC without specifying storage class use default class when only one class is marked as default
     Given I have a project
     Given I obtain test data file "storage/misc/pvc-without-annotations.json"
@@ -207,8 +224,9 @@ Feature: storageClass related feature
   @admin
   @singlenode
   @proxy @noproxy @connected
-  @heterogeneous @arm64 @amd64
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+    @s390x @ppc64le @heterogeneous @arm64 @amd64
+  @4.16 @4.15 @4.14 @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @storage
   Scenario Outline: PVC with storage class will provision pv with io1 type and 100/20000 iops ebs volume
     Given I have a project
     Given I obtain test data file "storage/ebs/dynamic-provisioning/storageclass-io1.yaml"
@@ -246,8 +264,10 @@ Feature: storageClass related feature
     Given I switch to cluster admin pseudo user
     And I wait for the resource "pv" named "<%= pvc.volume_name %>" to disappear within 300 seconds
 
+    @rosa @osd_ccs @aro
     @aws-ipi
     @aws-upi
+    @hypershift-hosted
     Examples:
       | case_id           | size  |
       | OCP-10158:Storage | 4Gi   | # @case_id OCP-10158
@@ -257,8 +277,9 @@ Feature: storageClass related feature
   @admin
   @singlenode
   @proxy @noproxy @disconnected @connected
-  @heterogeneous @arm64 @amd64
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+    @s390x @ppc64le @heterogeneous @arm64 @amd64
+  @4.16 @4.15 @4.14 @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @storage
   Scenario Outline: PVC with storage class will not provision pv with st1/sc1 type ebs volume if request size is wrong
     Given I have a project
     Given I obtain test data file "storage/ebs/dynamic-provisioning/storageclass.yaml"
@@ -285,8 +306,10 @@ Feature: storageClass related feature
       | <errorMessage>        |
     """
 
+    @rosa @osd_ccs @aro
     @aws-ipi
     @aws-upi
+    @hypershift-hosted
     Examples:
       | case_id           | type | size | errorMessage                  |
       | OCP-10164:Storage | sc1  | 5Gi  | at least 125 GiB              | # @case_id OCP-10164
@@ -295,12 +318,15 @@ Feature: storageClass related feature
   # @author chaoyang@redhat.com
   # @case_id OCP-10159
   @admin
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @4.16 @4.15 @4.14 @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @rosa @osd_ccs @aro
   @aws-ipi
   @aws-upi
   @singlenode
   @proxy @noproxy @disconnected @connected
-  @heterogeneous @arm64 @amd64
+  @s390x @ppc64le @heterogeneous @arm64 @amd64
+  @hypershift-hosted
+  @storage
   Scenario: OCP-10159:Storage PVC with storage class won't provisioned pv if no storage class or wrong storage class object
     Given I have a project
     # No sc exists
@@ -323,13 +349,17 @@ Feature: storageClass related feature
   # @author chaoyang@redhat.com
   # @case_id OCP-10228
   @smoke
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @4.16 @4.15 @4.14 @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @rosa @osd_ccs @aro
   @aws-ipi
   @aws-upi
   @upgrade-sanity
   @singlenode
   @proxy @noproxy @disconnected @connected
-  @heterogeneous @arm64 @amd64
+  @s390x @ppc64le @heterogeneous @arm64 @amd64
+  @hypershift-hosted
+  @critical
+  @storage
   Scenario: OCP-10228:Storage AWS ebs volume is dynamic provisioned with default storageclass
     Given I have a project
     Given I obtain test data file "storage/ebs/pvc-retain.json"

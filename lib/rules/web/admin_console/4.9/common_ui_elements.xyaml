@@ -140,7 +140,7 @@ check_text_not_a_link:
 click_tab:
   elements:
   - selector: &tab
-      xpath: //ul[contains(@class,'nav__menu')]//a[contains(text(), '<tab_name>')]
+      xpath: //ul[contains(@class,'nav__menu')]//a[text()='<tab_name>']
     op: click
     timeout: 30
 check_tab:
@@ -360,6 +360,36 @@ click_first_item_from_resource_list_and_check_breadcrumb:
     line_index: 1
   action: click_item_in_resource_list
   action: check_link_in_breadcrumb
+click_first_project_item_from_resource_list_and_check_breadcrumb:
+  params:
+    layer_number: 1
+    link: cluster/projects
+    text: Projects
+  action: click_first_item_from_resource_list_and_check_breadcrumb
+click_first_replicaset_item_from_resource_list_and_check_breadcrumb:
+  params:
+    layer_number: 1
+    link: /replicasets
+    text: ReplicaSets
+  action: click_first_item_from_resource_list_and_check_breadcrumb
+click_first_node_item_from_resource_list_and_check_breadcrumb:
+  params:
+    layer_number: 1
+    link: /nodes
+    text: Nodes
+  action: click_first_item_from_resource_list_and_check_breadcrumb
+click_first_consolepod_item_from_resource_list_and_check_breadcrumb:
+  params:
+    layer_number: 1
+    link: /k8s/ns/openshift-console/pods
+    text: Pods
+  action: click_first_item_from_resource_list_and_check_breadcrumb
+click_first_imagestream_item_from_resource_list_and_check_breadcrumb:
+  params:
+    layer_number: 1
+    link: imagestreams
+    text: ImageStreams
+  action: click_first_item_from_resource_list_and_check_breadcrumb
 # click and check the first sub item from a resource such as one of imagestreamtag on imagestream detail page
 click_first_item_from_sub_resource_list_and_check_breadcrumb:
   action: wait_box_loaded
@@ -369,6 +399,18 @@ check_link_in_breadcrumb:
   element:
     selector:
       xpath: //ol[@class='pf-c-breadcrumb__list']/li[<layer_number>]/a[contains(@data-test-id,'breadcrumb-link') and contains(@href,'<link>') and contains(translate(normalize-space(text()), ' ',''),'<text>')]
+check_installedoperators_link_in_breadcrumb:
+  params:
+    layer_number: 1
+    link: operators.coreos.com~v1alpha1~ClusterServiceVersion
+    text: InstalledOperators
+  action: check_link_in_breadcrumb
+check_installplans_link_in_breadcrumb:
+  params:
+    layer_number: 1
+    link: operators.coreos.com~v1alpha1~InstallPlan
+    text: InstallPlans
+  action: check_link_in_breadcrumb
 check_installplandetails_text_in_breadcrumb:
   params:
     layer_number: 2
@@ -383,6 +425,11 @@ check_replicasetdetails_text_in_breadcrumb:
   params:
     layer_number: 2
     text: ReplicaSet details
+  action: check_text_in_breadcrumb
+check_nodedetails_text_in_breadcrumb:
+  params:
+    layer_number: 2
+    text: Node details
   action: check_text_in_breadcrumb
 check_machinedetails_text_in_breadcrumb:
   params:
@@ -428,7 +475,7 @@ click_kebab_item:
   element:
     selector:
       xpath: //button[contains(@class,'pf-c-dropdown__menu-item') and not(contains(@class,'pf-m-disabled')) and text()='<kebab_item>']
-    timeout: 20
+    timeout: 60
     op: click
 click_kebab_of_one_resource:
   elements:
@@ -489,11 +536,11 @@ check_fixable_column_in_table:
 check_manifest_column_in_table:
   params:
     field: Manifest
-  action: check_column_in_table  
+  action: check_column_in_table
 check_instance_type_in_table:
   params:
     field: Instance type
-  action: check_column_in_table  
+  action: check_column_in_table
 check_column_in_table:
   action: wait_box_loaded
   elements:
@@ -655,9 +702,9 @@ check_no_deployment_found_text:
   params:
     content: No Deployments found
   action: check_page_contains
-check_no_alertmanager_found_text:
+check_no_resource_found_text:
   params:
-    content: No Alertmanagers found
+    content: No ConsoleCLIDownloads found
   action: check_page_contains
 check_no_resources_selected_text:
   params:
@@ -729,6 +776,11 @@ click_link_with_text_only:
   element:
     selector:
       xpath: //a[contains(text(),'<text>')]
+    op: click
+click_link_text:
+  element:
+    selector:
+      xpath: //a[text()='<text>']
     op: click
 click_primary_menu:
   action:

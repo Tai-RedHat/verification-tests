@@ -191,13 +191,13 @@ set_silence_duration:
   action: click_duration_dropdown_button
   element:
     selector:
-      xpath: //ul[@class='pf-c-dropdown__menu']//button[text()='<duration>']
+      xpath: //label[text()='For...']//..//button
     op: click
 set_silence_duration_null:
   action: click_duration_dropdown_button
   element:
     selector:
-      xpath: //ul[@class='pf-c-dropdown__menu']//button[text()='-']
+      xpath: //ul[@class='pf-c-dropdown__menu']//a[text()='-']
     op: click
 check_silence_duration_null:
   element:
@@ -265,7 +265,7 @@ silence_alert_from_create_button:
 check_use_regular:
   element:
     selector:
-      xpath: //span[text()='Alert labels']/ancestor::div[@class='co-m-pane__body-group']//input[@type='checkbox']
+      xpath: //span[text()='Alert labels']/ancestor::div[@class='co-m-pane__body-group']//label[text()='RegEx']/input[@type='checkbox']
     op: click
 check_info_of_silence_detail_reg:
   params:
@@ -345,7 +345,7 @@ show_alert_graph:
 hide_show_alert_graph_button:
   element:
     selector:
-      xpath: //h2[@class='co-section-heading']/../button
+      xpath: //button[contains(.,'graph')]
     op: click
 
 Disable_all_filters:

@@ -5,34 +5,35 @@ Feature: OVN related networking scenarios
   # @case_id OCP-29954
   @admin
   @destructive
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @4.16 @4.15 @4.14 @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
   @network-ovnkubernetes
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
   @proxy @noproxy @disconnected @connected
-  @heterogeneous @arm64 @amd64
+  @s390x @ppc64le @heterogeneous @arm64 @amd64
+  @hypershift-hosted
   Scenario: OCP-29954:SDN Creating a resource in Kube API should be synced to OVN NB db correctly even post NB db crash too
     Given the env is using "OVNKubernetes" networkType
     Given I have a project
     And I obtain test data file "networking/list_for_pods.json"
-    When I run the :create client command with:
-      | f | list_for_pods.json |
+    Given I obtain test data file "networking/list_for_pods.json"
+    When I run oc create over "list_for_pods.json" replacing paths:
+      | ["items"][0]["spec"]["replicas"] | 1 |
     Then the step should succeed
-    Given 2 pods become ready with labels:
+    Given a pod becomes ready with labels:
       | name=test-pods |
-    And evaluation of `pod(0).name` is stored in the :pod1_name clipboard
-    And evaluation of `pod(1).name` is stored in the :pod2_name clipboard
+    And evaluation of `pod.node_name` is stored in the :pod_node clipboard
+
     # Checking whether Kube API data is synced on OVN NB db which in this case are couple of pods
-    Given I store the ovnkube-master "north" leader pod in the clipboard
-    And evaluation of `pod.ip_url` is stored in the :ovn_nb_leader_ip clipboard
+    Given I store the ovnkube-master "north" leader pod in the clipboard for "pod" using node "<%= cb.pod_node %>"
     And evaluation of `pod.node_name` is stored in the :ovn_nb_leader_node clipboard
     # too much output, if we don't filter server-side this always fails
     And admin executes on the pod "northd" container:
-      | bash | -c | ovn-nbctl list logical_switch_port \| grep -e "<%= cb.pod1_name %>" -e "<%= cb.pod2_name %>" |
+      | bash | -c | ovn-nbctl list logical_switch_port \| grep -e "<%= cb.pod_name %>" |
     Then the step should succeed
     And the output should contain:
-      | <%= cb.pod1_name %> |
-      | <%= cb.pod2_name %> |
+      | <%= cb.pod_name %> |
+
     # Simulating a NB db crash
     Given I use the "<%= cb.ovn_nb_leader_node %>" node
     And I run commands on the host:
@@ -42,23 +43,23 @@ Feature: OVN related networking scenarios
     Given I store the ovnkube-master "north" leader pod in the clipboard
     # too much output, if we don't filter server-side this always fails
     And admin executes on the pod "northd" container:
-      | bash | -c | ovn-nbctl list logical_switch_port \| grep -e "<%= cb.pod1_name %>" -e "<%= cb.pod2_name %>" |
+      | bash | -c | ovn-nbctl list logical_switch_port \| grep -e "<%= cb.pod_name %>" |
     Then the step should succeed
     And the output should contain:
-      | <%= cb.pod1_name %> |
-      | <%= cb.pod2_name %> |
+      | <%= cb.pod_name %> |
 
 
   # @author anusaxen@redhat.com
   # @case_id OCP-30055
   @admin
   @destructive
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @4.16 @4.15 @4.14 @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
   @network-ovnkubernetes
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
   @proxy @noproxy @disconnected @connected
-  @heterogeneous @arm64 @amd64
+  @s390x @ppc64le @heterogeneous @arm64 @amd64
+  @hypershift-hosted
   Scenario: OCP-30055:SDN OVN DB should be updated correctly if a resource only exist in Kube API but not in OVN NB db
     Given the env is using "OVNKubernetes" networkType
     Given I register clean-up steps:
@@ -77,14 +78,13 @@ Feature: OVN related networking scenarios
       | replicas | 0                          |
       | n        | openshift-network-operator |
     Then the step should succeed
-    And admin ensures "ovnkube-master" ds is deleted from the "openshift-ovn-kubernetes" project
-    And admin executes existing pods die with labels:
-      | app=ovnkube-master |
+    And the corresponding version ovn masterDB components ds is deleted
     Given I have a project
     And I obtain test data file "networking/pod-for-ping.json"
     When I run the :create client command with:
       | f | pod-for-ping.json |
     Then the step should succeed
+    And evaluation of `pod.node_name` is stored in the :pod_node clipboard
     # Now scale up CNO pod to 1 and check whether hello-pod is synced to NB db
     Given I run the :scale admin command with:
       | resource | deployment                 |
@@ -97,7 +97,7 @@ Feature: OVN related networking scenarios
     # This used to be 60 seconds but around the time of 4.6 60 seconds is no longer sufficient
     And admin waits for all pods in the "openshift-ovn-kubernetes" project to become ready up to 120 seconds
     # Checking whether Kube API data is synced on OVN NB db which in this case is a test-pod created in earlier steps
-    Given I store the ovnkube-master "north" leader pod in the clipboard
+    Given I store the ovnkube-master "north" leader pod in the clipboard for "pod" using node "<%= cb.pod_node %>"
     # too much output, if we don't filter server-side this always fails
     And admin executes on the pod "northd" container:
       | bash | -c | ovn-nbctl list logical_switch_port \| grep hello-pod |
@@ -109,19 +109,21 @@ Feature: OVN related networking scenarios
   # @case_id OCP-30057
   @admin
   @destructive
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @4.16 @4.15 @4.14 @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
   @network-ovnkubernetes
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
   @proxy @noproxy @disconnected @connected
-  @heterogeneous @arm64 @amd64
+  @s390x @ppc64le @heterogeneous @arm64 @amd64
+  @hypershift-hosted
   Scenario: OCP-30057:SDN OVN DB should be updated correctly if a resource only exist in NB db but not in Kube API
     Given the env is using "OVNKubernetes" networkType
     Given I have a project
     And evaluation of `project.name` is stored in the :hello_pod_project clipboard
     And I have a pod-for-ping in the project
+    And evaluation of `pod.node_name` is stored in the :pod_node clipboard
     # Checking whether Kube API data is synced on OVN NB db which in this case is a hello-pod created in earlier steps
-    Given I store the ovnkube-master "north" leader pod in the clipboard
+    Given I store the ovnkube-master "north" leader pod in the clipboard for "pod" using node "<%= cb.pod_node %>"
     # too much output, if we don't filter server-side this always fails
     And admin executes on the pod "northd" container:
       | bash | -c | ovn-nbctl list logical_switch_port \| grep hello-pod |
@@ -144,9 +146,7 @@ Feature: OVN related networking scenarios
       | replicas | 0                          |
       | n        | openshift-network-operator |
     Then the step should succeed
-    And admin ensures "ovnkube-master" ds is deleted from the "openshift-ovn-kubernetes" project
-    And admin executes existing pods die with labels:
-      | app=ovnkube-master |
+    And the corresponding version ovn masterDB components ds is deleted
     And I ensure "hello-pod" pod is deleted from the "<%= cb.hello_pod_project %>" project
     # Now scale up CNO pod to 1 and check whether hello-pod status is synced to NB db means it should not present in the DB
     Given I run the :scale admin command with:
@@ -160,7 +160,7 @@ Feature: OVN related networking scenarios
     Given 30 seconds have passed
     # This used to be 60 seconds but around the time of 4.6 60 seconds is no longer sufficient
     And admin waits for all pods in the "openshift-ovn-kubernetes" project to become ready up to 120 seconds
-    Given I store the ovnkube-master "north" leader pod in the clipboard
+    Given I store the ovnkube-master "north" leader pod in the clipboard for "pod" using node "<%= cb.pod_node %>"
     # too much output, if we don't filter server-side this always fails
     # making sure here that hello-pod absense is properly synced
     And admin executes on the pod "northd" container:
@@ -173,15 +173,16 @@ Feature: OVN related networking scenarios
   # @author anusaxen@redhat.com
   # @case_id OCP-32205
   @admin
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @4.16 @4.15 @4.14 @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
   @network-ovnkubernetes
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
   @proxy @noproxy @disconnected @connected
-  @heterogeneous @arm64 @amd64
+  @s390x @ppc64le @heterogeneous @arm64 @amd64
+  @hypershift-hosted
   Scenario: OCP-32205:SDN Thrashing ovnkube master IPAM allocator by creating and deleting various pods on a specific node
     Given the env is using "OVNKubernetes" networkType
-    And I store all worker nodes to the :nodes clipboard
+    Given I store the ready and schedulable workers in the :nodes clipboard
     And I have a project
     Given I obtain test data file "networking/generic_test_pod_with_replica.yaml"
     When I run the steps 10 times:
@@ -203,24 +204,25 @@ Feature: OVN related networking scenarios
   # @author anusaxen@redhat.com
   # @case_id OCP-32184
   @admin
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @4.16 @4.15 @4.14 @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
   @network-ovnkubernetes
   @singlenode
   @proxy @noproxy @disconnected @connected
-  @heterogeneous @arm64 @amd64
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+  @s390x @ppc64le @heterogeneous @arm64 @amd64
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
   Scenario: OCP-32184:SDN ovnkube-masters should allocate pod IP and mac addresses
     Given the env is using "OVNKubernetes" networkType
     And I have a project
     Given I have a pod-for-ping in the project
     Then evaluation of `pod.ip` is stored in the :hello_pod_ip clipboard
+    And evaluation of `pod.node_name` is stored in the :pod_node clipboard
     When I execute on the pod:
       | bash | -c | ip a show eth0 |
     Then the step should succeed
     And evaluation of `@result[:response].match(/\h+:\h+:\h+:\h+:\h+:\h+/)[0]` is stored in the :hello_pod_mac clipboard
 
-    Given I store the ovnkube-master "north" leader pod in the clipboard
+    Given I store the ovnkube-master "north" leader pod in the clipboard for "pod" using node "<%= cb.pod_node %>"
     And admin executes on the pod:
       | bash | -c | ovn-nbctl list logical_switch_port \| grep "hello-pod" -C 10 |
     Then the step should succeed
@@ -233,12 +235,13 @@ Feature: OVN related networking scenarios
   # @case_id OCP-28936
   @admin
   @destructive
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
   @network-ovnkubernetes
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
   @proxy @noproxy @disconnected @connected
-  @heterogeneous @arm64 @amd64
+  @s390x @ppc64le @heterogeneous @arm64 @amd64
+  @hypershift-hosted
   Scenario: OCP-28936:SDN Create/delete pods while forcing OVN leader election
   #Test for bug https://bugzilla.redhat.com/show_bug.cgi?id=1781297
     Given the env is using "OVNKubernetes" networkType
@@ -263,12 +266,13 @@ Feature: OVN related networking scenarios
   # @case_id OCP-26092
   @admin
   @destructive
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
   @network-ovnkubernetes
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
   @proxy @noproxy @disconnected @connected
-  @heterogeneous @arm64 @amd64
+  @s390x @ppc64le @heterogeneous @arm64 @amd64
+  @hypershift-hosted
   Scenario: OCP-26092:SDN Pods and Services should keep running when a new raft leader gets be elected
     Given the env is using "OVNKubernetes" networkType
     Given I store the ovnkube-master "south" leader pod in the clipboard
@@ -309,12 +313,13 @@ Feature: OVN related networking scenarios
   # @case_id OCP-26139
   @admin
   @destructive
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
   @network-ovnkubernetes
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
   @proxy @noproxy @disconnected @connected
-  @heterogeneous @arm64 @amd64
+  @s390x @ppc64le @heterogeneous @arm64 @amd64
+  @hypershift-hosted
   Scenario: OCP-26139:SDN Traffic flow shouldn't be interrupted when master switches the leader positions
     Given the env is using "OVNKubernetes" networkType
     Given I switch to cluster admin pseudo user
@@ -379,12 +384,13 @@ Feature: OVN related networking scenarios
   # @case_id OCP-26089
   @admin
   @destructive
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
   @network-ovnkubernetes
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
   @proxy @noproxy @disconnected @connected
-  @heterogeneous @arm64 @amd64
+  @s390x @ppc64le @heterogeneous @arm64 @amd64
+  @hypershift-hosted
   Scenario: OCP-26089:SDN New raft leader should be elected if existing leader gets deleted or crashed in hybrid/non-hybrid clusters
     Given the env is using "OVNKubernetes" networkType
     Given admin uses the "openshift-ovn-kubernetes" project
@@ -405,10 +411,10 @@ Feature: OVN related networking scenarios
   # @case_id OCP-26091
   @admin
   @destructive
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
   @network-ovnkubernetes
-    @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-    @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+    @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+    @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
   @proxy @noproxy @disconnected @connected
   Scenario Outline: New corresponding raft leader should be elected if SB db or NB db on existing master is crashed
     Given the env is using "OVNKubernetes" networkType
@@ -439,7 +445,8 @@ Feature: OVN related networking scenarios
     """
     And admin waits for all pods in the project to become ready up to 120 seconds
 
-    @heterogeneous @arm64 @amd64
+    @s390x @ppc64le @heterogeneous @arm64 @amd64
+    @hypershift-hosted
     Examples:
       | signal |
       | TERM   |
@@ -453,12 +460,13 @@ Feature: OVN related networking scenarios
   # @case_id OCP-26138
   @admin
   @destructive
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
   @network-ovnkubernetes
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
   @proxy @noproxy @disconnected @connected
-  @heterogeneous @arm64 @amd64
+  @s390x @ppc64le @heterogeneous @arm64 @amd64
+  @hypershift-hosted
   Scenario: OCP-26138:SDN Inducing Split Brain in the OVN HA cluster
     Given admin uses the "openshift-ovn-kubernetes" project
     When I store the ovnkube-master "south" leader pod in the clipboard
@@ -487,9 +495,9 @@ Feature: OVN related networking scenarios
     And I wait up to 120 seconds for the steps to pass:
     # check the leader on the original leader to ensure it is still the leader and the split node doesn't become leader
     """
-    When I store the ovnkube-master "south" leader pod in the :original_south_leader clipboard using node "<%= cb.south_leader.node_name %>"
+    When I store the ovnkube-master "south" leader pod in the :original_south_leader clipboard for "raft" using node "<%= cb.south_leader.node_name %>"
     Then the step should succeed
-    When I store the ovnkube-master "south" leader pod in the :isolated_south_leader clipboard using node "<%= cb.nodes[0].name %>"
+    When I store the ovnkube-master "south" leader pod in the :isolated_south_leader clipboard for "raft" using node "<%= cb.nodes[0].name %>"
     Then the step should succeed
     """
     # try to get the isolated leader for debug, it might not work
@@ -500,9 +508,9 @@ Feature: OVN related networking scenarios
     And I wait up to 120 seconds for the steps to pass:
     # check the leader on the original leader to ensure it is still the leader and the split node doesn't become leader
     """
-    When I store the ovnkube-master "south" leader pod in the :after_south_leader clipboard using node "<%= cb.south_leader.node_name %>"
+    When I store the ovnkube-master "south" leader pod in the :after_south_leader clipboard for "raft" using node "<%= cb.south_leader.node_name %>"
     Then the step should succeed
-    When I store the ovnkube-master "south" leader pod in the :after_isolated_south_leader clipboard using node "<%= cb.nodes[0].name %>"
+    When I store the ovnkube-master "south" leader pod in the :after_isolated_south_leader clipboard for "raft" using node "<%= cb.nodes[0].name %>"
     Then the step should succeed
     """
     And admin waits for all pods in the project to become ready up to 120 seconds
@@ -512,12 +520,13 @@ Feature: OVN related networking scenarios
   # @case_id OCP-26140
   @admin
   @destructive
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
   @network-ovnkubernetes
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
   @proxy @noproxy @disconnected @connected
-  @heterogeneous @arm64 @amd64
+  @s390x @ppc64le @heterogeneous @arm64 @amd64
+  @hypershift-hosted
   Scenario: OCP-26140:SDN Delete all OVN master pods and makes sure leader/follower election converges smoothly
     Given the env is using "OVNKubernetes" networkType
     Given admin uses the "openshift-ovn-kubernetes" project
@@ -539,13 +548,14 @@ Feature: OVN related networking scenarios
   # @author rbrattai@redhat.com
   # @case_id OCP-37031
   @admin
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @4.16 @4.15 @4.14 @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
   @network-ovnkubernetes
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
   @singlenode
   @proxy @noproxy @disconnected @connected
-  @heterogeneous @arm64 @amd64
+  @s390x @ppc64le @heterogeneous @arm64 @amd64
+  @hypershift-hosted
   Scenario: OCP-37031:SDN OVN handles projects that start with a digit
     Given the env is using "OVNKubernetes" networkType
     Given I create a project with leading digit name
@@ -625,12 +635,13 @@ Feature: OVN related networking scenarios
   # @case_id OCP-46285
   @admin
   @destructive
-  @4.12 @4.11 @4.10 @4.9 @4.8
+  @4.16 @4.15 @4.14 @4.13 @4.12 @4.11 @4.10 @4.9 @4.8
   @network-ovnkubernetes
   @vsphere-ipi @baremetal-ipi
   @proxy @noproxy @connected
   @vsphere-upi @baremetal-upi
-  @heterogeneous @arm64 @amd64
+  @s390x @ppc64le @heterogeneous @arm64 @amd64
+  @hypershift-hosted
   Scenario: OCP-46285:SDN Logical Router Policies and Annotations for a given node should be current
     Given the env is using "OVNKubernetes" networkType
     #Find apiVIP address of the cluster

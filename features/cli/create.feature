@@ -5,16 +5,18 @@ Feature: creating 'apps' with CLI
   @admin
   @destructive
   @proxy
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+  @4.16 @4.15 @4.14 @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
   @upgrade-sanity
   @singlenode
   @connected
   @network-ovnkubernetes @network-openshiftsdn
-  @heterogeneous @arm64 @amd64
+  @s390x @ppc64le @heterogeneous @arm64 @amd64
+  @hypershift-hosted
+  @critical
   Scenario: OCP-11761:Authentication Process with special FSGroup id can be ran when using RunAsAny as the RunAsGroupStrategy
-    Given I have a project
+    Given I have a project with proper privilege
     Given I obtain test data file "pods/pod_with_special_fsGroup.json"
     When I run the :create client command with:
       | f | pod_with_special_fsGroup.json |
@@ -35,10 +37,11 @@ Feature: creating 'apps' with CLI
   # @case_id OCP-12399
   @singlenode
   @noproxy @connected
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
   @network-ovnkubernetes @network-openshiftsdn
   @inactive
+  @critical
   Scenario: OCP-12399:BuildAPI Create an application from source code
     Given I have a project
     When I git clone the repo "https://github.com/openshift/ruby-hello-world"
@@ -51,7 +54,7 @@ Feature: creating 'apps' with CLI
       | env          | MYSQL_ROOT_PASSWORD=test |
     Given the "<%= cb.appname %>-1" build completes
     Given 1 pod becomes ready with labels:
-      | deployment=<%= cb.appname %>-1 |
+      | deployment=<%= cb.appname %> |
     And I wait for the steps to pass:
     """
     When I execute on the pod:
@@ -69,7 +72,7 @@ Feature: creating 'apps' with CLI
       | env          | MYSQL_ROOT_PASSWORD=test                      |
     Given the "<%= cb.appname1 %>-1" build completes
     Given 1 pod becomes ready with labels:
-      | deployment=<%= cb.appname1 %>-1 |
+      | deployment=<%= cb.appname1 %> |
     And I wait for the steps to pass:
     """
     When I execute on the pod:
@@ -87,7 +90,7 @@ Feature: creating 'apps' with CLI
       | env          | MYSQL_ROOT_PASSWORD=test                     |
     Given the "<%= cb.appname2 %>-1" build completes
     Given 1 pod becomes ready with labels:
-      | deployment=<%= cb.appname2 %>-1 |
+      | deployment=<%= cb.appname2 %> |
     And I wait for the steps to pass:
     """
     When I execute on the pod:
@@ -105,7 +108,7 @@ Feature: creating 'apps' with CLI
       | env          | MYSQL_ROOT_PASSWORD=test                      |
     Given the "<%= cb.appname3 %>-1" build completes
     Given 1 pod becomes ready with labels:
-      | deployment=<%= cb.appname3 %>-1 |
+      | deployment=<%= cb.appname3 %> |
     And I wait for the steps to pass:
     """
     When I execute on the pod:
@@ -197,14 +200,15 @@ Feature: creating 'apps' with CLI
   # @author xiuwang@redhat.com
   # @case_id OCP-31250
   @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
   @upgrade-sanity
   @singlenode
   @noproxy @connected
   @network-ovnkubernetes @network-openshiftsdn
-  @heterogeneous @arm64 @amd64
+  @s390x @ppc64le @heterogeneous @arm64 @amd64
   @inactive
+  @critical
   Scenario: OCP-31250:BuildAPI Create an application from source code test
     Given I have a project
     When I git clone the repo "https://github.com/openshift/ruby-hello-world"

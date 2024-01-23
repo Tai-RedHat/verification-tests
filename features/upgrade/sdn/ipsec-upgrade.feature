@@ -3,13 +3,15 @@ Feature: IPsec upgrade scenarios
   # @author anusaxen@redhat.com
   @admin
   @upgrade-prepare
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7
   @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi
   @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi
   @network-ovnkubernetes @network-networkpolicy @ipsec
   @upgrade
   @proxy @noproxy @disconnected @connected
-  @heterogeneous @arm64 @amd64
+  @hypershift-hosted
+  @s390x @ppc64le @heterogeneous @arm64 @amd64
+  @critical
+  @4.16 @4.15 @4.14 @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7
   Scenario: Confirm node-node and pod-pod packets are ESP enrypted on IPsec clusters post upgrade - prepare
     Given the env is using "OVNKubernetes" networkType
     And the IPsec is enabled on the cluster
@@ -64,21 +66,25 @@ Feature: IPsec upgrade scenarios
     #capturing tcpdump for 2 seconds
     Given I use the "ipsec-upgrade" project
     When admin executes on the "<%= cb.hostnw_pod_worker0 %>" pod:
-       | sh | -c | timeout  --preserve-status 2 tcpdump -i <%= cb.default_interface %> esp |
+       | sh | -c | timeout  --preserve-status 4 tcpdump -i <%= cb.default_interface %> esp |
     Then the step should succeed
     And the output should contain "ESP"
+    And admin ensures "hostnw-pod-worker0" pod is deleted from the "ipsec-upgrade" project
+
 
   # @author anusaxen@redhat.com
   # @case_id OCP-44834
   @admin
   @upgrade-check
   @network-ovnkubernetes @network-networkpolicy @ipsec
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7
+  @4.16 @4.15 @4.14 @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7
   @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi
   @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi
   @upgrade
   @proxy @noproxy @disconnected @connected
-  @heterogeneous @arm64 @amd64
+  @s390x @ppc64le @heterogeneous @arm64 @amd64
+  @hypershift-hosted
+  @critical
   Scenario: Confirm node-node and pod-pod packets are ESP enrypted on IPsec clusters post upgrade
     Given the IPsec is enabled on the cluster
     Given evaluation of `50` is stored in the :protocol clipboard
@@ -92,6 +98,7 @@ Feature: IPsec upgrade scenarios
       | name=hello-pod1 |
     And evaluation of `pod.node_name` is stored in the :worker1 clipboard
     And the Internal IP of node "<%= cb.worker1 %>" is stored in the :host_ip clipboard
+    Given the appropriate pod security labels are applied to the "ipsec-upgrade" namespace
     Given I obtain test data file "networking/net_admin_cap_pod.yaml"
     #Host network pod for running tcpdump on correcpdonding worker node
     When I run oc create as admin over "net_admin_cap_pod.yaml" replacing paths:
@@ -106,7 +113,7 @@ Feature: IPsec upgrade scenarios
     And evaluation of `pod.name` is stored in the :hostnw_pod_worker1 clipboard
     #capturing tcpdump for 2 seconds
     When admin executes on the "<%= cb.hostnw_pod_worker1 %>" pod:
-       | sh | -c | timeout  --preserve-status 2 tcpdump -i <%= cb.default_interface %> esp |
+       | sh | -c | timeout  --preserve-status 4 tcpdump -i <%= cb.default_interface %> esp |
     Then the step should succeed
     #Following will confirm pod-pod encryption
     #Example ESP packet un-encrypted will look like 16:37:16.309297 IP ip-10-0-x-x.us-east-2.compute.internal > ip-10-0-x-x.us-east-2.compute.internal: ESP(spi=0xf50c771c,seq=0xfaad)

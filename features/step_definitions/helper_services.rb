@@ -121,10 +121,10 @@ end
 Given /^I have a(n authenticated)? proxy configured in the project$/ do |use_auth|
   if use_auth
     step %Q/I run the :create_deploymentconfig client command with:/, table(%{
-      | image | quay.io/openshifttest/squid-proxy:1.2.0 |
+      | image | quay.io/openshifttest/squid-proxy@sha256:38f2db3f4f99a3b6e5f00be9f063b821fdea1d4e16c90747def63ec42d2cd665 |
       | name  | squid-proxy                       |
       })
-    step %Q/I wait until the status of deployment "squid-proxy" becomes :running/
+    step %Q/I wait until the status of deployment "squid-proxy" becomes :complete/
     step %Q/I run the :set_env client command with:/, table(%{
       | resource | deploymentconfig/squid-proxy |
       | e        | USE_AUTH=1                   |
@@ -161,17 +161,7 @@ Given /^I have LDAP service in my project$/ do
     # So take the second one since this one can be implemented currently
     ###
     stats = {}
-    if env.version_ge("4.12", user: user)
-      step %Q/I run the :label admin command with:/, table(%{
-        | resource  | namespace/<%= project.name %>                        |
-        | overwrite | true                                                 |
-        | key_val   | security.openshift.io/scc.podSecurityLabelSync=false |
-        | key_val   | pod-security.kubernetes.io/enforce=privileged        |
-        | key_val   | pod-security.kubernetes.io/audit=privileged          |
-        | key_val   | pod-security.kubernetes.io/warn=privileged           |
-        })
-      step %Q/the step should succeed/
-    end
+    step %Q/the appropriate pod security labels are applied to the namespace/
     step 'I obtain test data file "pods/ldapserver.yaml"'
     step %Q/I run the :create admin command with:/, table(%{
       | f | ldapserver.yaml      |
@@ -389,9 +379,9 @@ Given /^I have a header test service in the#{OPT_QUOTED} project$/ do |project_n
     raise "project #{project_name} does not exist"
   end
 
-  @result = user.cli_exec(:create, f: "#{BushSlicer::HOME}/testdata/routing/header-test/dc.json")
-  raise "could not create header test dc" unless @result[:success]
-  cb.header_test_dc = dc("header-test")
+  @result = user.cli_exec(:create, f: "#{BushSlicer::HOME}/testdata/routing/header-test/deployment.yaml")
+  raise "could not create header test deployment" unless @result[:success]
+  cb.header_test_deployment = deployment("header-test")
 
   @result = user.cli_exec(:create, f: "#{BushSlicer::HOME}/testdata/routing/header-test/insecure-service.json")
   raise "could not create header test svc" unless @result[:success]
@@ -407,7 +397,7 @@ Given /^I have a header test service in the#{OPT_QUOTED} project$/ do |project_n
                                service("header-test-insecure"))
 
   @result = BushSlicer::Pod.wait_for_labeled(
-    "deploymentconfig=header-test",
+    "name=header-test",
     count: 1, user: user, project: project, seconds: 300)
   raise "timeout waiting for header test pod to start" unless @result[:success]
   cache_pods(*@result[:matching])
@@ -515,10 +505,11 @@ Given /^I have a iSCSI setup in the environment$/ do
   if !_project.exists?(user:admin, quiet: true)
     @result = admin.cli_exec(:create_namespace, name: 'iscsi-target')
     raise 'failed to create "iscsi-target" project' unless @result[:success]
-    if env.version_ge("4.12", user: user)
-      @result = admin.cli_exec(:label, [[:resource, "ns/iscsi-target"], [:overwrite, "true"], [:key_val, "security.openshift.io/scc.podSecurityLabelSync=false"], [:key_val, "pod-security.kubernetes.io/enforce=privileged"], [:key_val, "pod-security.kubernetes.io/audit=privileged"], [:key_val, "pod-security.kubernetes.io/warn=privileged"]])
-      raise 'failed to add pod security labels to "iscsi-target" namespace' unless @result[:success]
+    @result = admin.cli_exec(:annotate, resource: 'namespace', resourcename: 'iscsi-target', keyval: 'openshift.io/node-selector=', overwrite: 'true')
+    if !@result[:success]
+      logger.warn("failed to annotate iscsi-target namespace with openshift.io/node-selector=")
     end
+    step %Q/the appropriate pod security labels are applied to the "iscsi-target" namespace/
   end
 
   _pod = cb.iscsi_pod = pod("iscsi-target", _project)
@@ -528,8 +519,9 @@ Given /^I have a iSCSI setup in the environment$/ do
     logger.info "found existing iSCSI pod, skipping config"
   elsif _pod.exists?(user: admin, quiet: true)
     logger.warn "broken iSCSI pod, will try to recreate keeping other config"
-    @result = admin.cli_exec(:delete, n: _project.name, object_type: "pod", object_name_or_id: _pod.name)
-    raise "could not delete broken iSCSI pod" unless @result[:success]
+    step %Q{admin ensures "#{_pod.name}" pod is deleted from the "#{_project.name}" project}
+    @result = admin.cli_exec(:create, n: _project.name, f: "#{BushSlicer::HOME}/testdata/storage/iscsi/iscsi-target.json")
+    raise "could not create iSCSI pod" unless @result[:success]
   else
     @result = admin.cli_exec(:create, n: _project.name, f: "#{BushSlicer::HOME}/testdata/storage/iscsi/iscsi-target.json")
     raise "could not create iSCSI pod" unless @result[:success]
@@ -632,12 +624,14 @@ Given /^I have a registry in my project$/ do
   if BushSlicer::Project::SYSTEM_PROJECTS.include?(project(generate: false).name)
     raise "I refuse create registry in a system project: #{project.name}"
   end
-  @result = admin.cli_exec(:new_app, docker_image: "quay.io/openshifttest/registry:1.2.0", namespace: project.name)
+  @result = admin.cli_exec(:create_deployment, name: "registry", image: "quay.io/openshifttest/registry@sha256:1106aedc1b2e386520bc2fb797d9a7af47d651db31d8e7ab472f2352da37d1b3", namespace: project.name)
   step %Q/the step should succeed/
   @result = admin.cli_exec(:set_probe, resource: "deploy/registry", readiness: true, liveness: true, get_url: "http://:5000/v2",namespace: project.name)
   step %Q/the step should succeed/
+  @result = admin.cli_exec(:expose, resource: "deploy", resource_name: "registry", port: "5000", namespace: project.name)
+  step %Q/the step should succeed/
   step %Q/a pod becomes ready with labels:/, table(%{
-       | deployment=registry |
+       | app=registry |
   })
   cb.reg_svc_ip = "#{service("registry").ip(user: user)}"
   cb.reg_svc_port = "#{service("registry").ports(user: user)[0].dig("port")}"

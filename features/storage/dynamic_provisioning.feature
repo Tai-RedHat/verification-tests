@@ -6,8 +6,9 @@ Feature: Dynamic provisioning
   @upgrade-sanity
   @singlenode
   @proxy @noproxy @disconnected @connected
-  @heterogeneous @arm64 @amd64
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+    @s390x @ppc64le @heterogeneous @arm64 @amd64
+  @4.16 @4.15 @4.14 @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @storage
   Scenario Outline: dynamic provisioning
     Given I have a project
     Given I obtain test data file "storage/misc/pvc.json"
@@ -61,18 +62,21 @@ Feature: Dynamic provisioning
       | <%= cb.volumeID %>     |
     # And I verify that the IAAS volume with id "<%= cb.volumeID %>" was deleted
 
+    @rosa @osd_ccs @aro
     @aws-ipi
     @aws-upi
     Examples:
       | case_id          | cloud_provider |
       | OCP-9685:Storage | ebs            | # @case_id OCP-9685
 
+    @rosa @osd_ccs @aro
     @gcp-ipi
     @gcp-upi
     Examples:
       | case_id           | cloud_provider |
       | OCP-12665:Storage | gce            | # @case_id OCP-12665
 
+    @rosa @osd_ccs @aro
     @azure-ipi
     @azure-upi
     Examples:
@@ -81,6 +85,8 @@ Feature: Dynamic provisioning
 
     @openstack-ipi
     @openstack-upi
+    @hypershift-hosted
+    @critical
     Examples:
       | case_id          | cloud_provider |
       | OCP-9656:Storage | cinder         | # @case_id OCP-9656

@@ -1,125 +1,18 @@
 Feature: projects related features via cli
 
-  # @author yapei@redhat.com
-  # @case_id OCP-11887
-  @proxy
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
-  @upgrade-sanity
-  @singlenode
-  @connected
-  @network-ovnkubernetes @network-openshiftsdn
-  @heterogeneous @arm64 @amd64
-  @rosa @aro @osd_ccs
-  Scenario: OCP-11887:APIServer Could delete all resources when delete the project
-    Given a 5 characters random string of type :dns is stored into the :prj_name clipboard
-    When I run the :new_project client command with:
-      | project_name | <%= cb.prj_name %> |
-    Then the step should succeed
-    When I create a new application with:
-      | docker image | quay.io/openshifttest/mysql:1.2.0         |
-      | code         | https://github.com/openshift/ruby-hello-world |
-    ### get project resource
-    When I run the :get client command with:
-      | resource | dc,deployment |
-    Then the step should succeed
-    And the output should contain:
-      | mysql            |
-      | ruby-hello-world |
-    When I run the :get client command with:
-      | resource | services |
-    Then the step should succeed
-    And the output should contain:
-      | mysql            |
-      | ruby-hello-world |
-    When I run the :get client command with:
-      | resource | is |
-    Then the step should succeed
-    And the output should contain:
-      | mysql            |
-      | ruby-hello-world |
-    ### delete this project,make sure project is deleted
-    Given the "<%= cb.prj_name %>" project is deleted
-    ### get project resource after project is deleted
-    When I run the :get client command with:
-      | resource | dc,deployment       |
-      | n        | <%= cb.prj_name %>  |
-    Then the step should fail
-    And the output should not contain:
-      | mysql            |
-      | ruby-hello-world |
-    When I run the :get client command with:
-      | resource | services           |
-      | n        | <%= cb.prj_name %> |
-    Then the step should fail
-    And the output should not contain:
-      | mysql            |
-      | ruby-hello-world |
-    When I run the :get client command with:
-      | resource | pods               |
-      | n        | <%= cb.prj_name %> |
-    Then the step should fail
-    And the output should not contain:
-      | mysql |
-
-    ### create a project with same name, no context for this new one
-    And I wait for the steps to pass:
-    """
-    Given I run the :new_project client command with:
-      | project_name | <%= cb.prj_name %> |
-    And the step should succeed
-    """
-    Then I run the :status client command
-    And the output should contain:
-      | no services, deployment |
-
-  # @author cryan@redhat.com
-  # @case_id OCP-12193
-  @admin
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
-  @singlenode
-  @network-ovnkubernetes @network-openshiftsdn
-  @proxy @noproxy
-  @heterogeneous @arm64 @amd64
-  @rosa @aro @osd_ccs
-  Scenario: OCP-12193:APIServer User can get node selector from a project
-    Given  an 8 character random string of type :dns is stored into the :oadmproj1 clipboard
-    Given  an 8 character random string of type :dns is stored into the :oadmproj2 clipboard
-    When admin creates a project with:
-      | project_name | <%= cb.oadmproj1 %> |
-      | admin | <%= user.name %> |
-    Then the step should succeed
-    When admin creates a project with:
-      | project_name | <%= cb.oadmproj2 %> |
-      | node_selector | env=qa |
-      | description | testnodeselector |
-      | admin | <%= user.name %> |
-    Then the step should succeed
-    When I run the :describe client command with:
-      | resource | project |
-      | name | <%= cb.oadmproj1 %> |
-    Then the step should succeed
-    And the output should match "Node Selector:\s+<none>"
-    When I run the :describe client command with:
-      | resource | project |
-      | name | <%= cb.oadmproj2 %> |
-    Then the step should succeed
-    And the output should match "Node Selector:\s+env=qa"
-
   # @author cryan@redhat.com
   # @case_id OCP-12561
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+  @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
   @upgrade-sanity
   @singlenode
   @network-ovnkubernetes @network-openshiftsdn
   @proxy @noproxy
-  @heterogeneous @arm64 @amd64
+  @s390x @ppc64le @heterogeneous @arm64 @amd64
   @osd_ccs @aro @rosa
+  @hypershift-hosted
+  @critical
   Scenario: OCP-12561:Authentication Could remove user and group from the current project
     Given I have a project
     When I run the :oadm_policy_add_role_to_user client command with:
@@ -155,15 +48,17 @@ Feature: projects related features via cli
   # @author yinzhou@redhat.com
   # @case_id OCP-11201
   @proxy
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+  @4.16 @4.15 @4.14 @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
   @upgrade-sanity
   @singlenode
   @connected
   @network-ovnkubernetes @network-openshiftsdn
-  @heterogeneous @arm64 @amd64
+  @s390x @ppc64le @heterogeneous @arm64 @amd64
   @osd_ccs @aro @rosa
+  @hypershift-hosted
+  @critical
   Scenario: OCP-11201:Authentication Process with default FSGroup id can be ran when using the default MustRunAs as the RunAsGroupStrategy
     Given I have a project
     Given I obtain test data file "pods/hello-pod.json"

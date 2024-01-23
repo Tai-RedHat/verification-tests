@@ -85,9 +85,11 @@ Feature: networking isolation related scenarios
     Then the output should contain "Hello OpenShift!"
 
   # @author jechen@redhat.com
-  # @case_id OCP-9564 & OCP-45077
+  # @case_id OCP-45077
   @admin
   @network-multitenant
+  @s390x @ppc64le
+  @4.16 @4.15 @4.14 @4.13
   Scenario: Only the pods nested in a same namespace can communicate with each other
     Given the env is using multitenant network
     Given I have a project
@@ -147,11 +149,13 @@ Feature: networking isolation related scenarios
   # @case_id OCP-9641
   @admin
   @network-openshiftsdn @network-multitenant
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
-  @heterogeneous @arm64 @amd64
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+  @4.16 @4.15 @4.14 @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @s390x @ppc64le @heterogeneous @arm64 @amd64
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
   @proxy @noproxy
+  @hypershift-hosted
+  @critical
   Scenario: OCP-9641:SDN Make the network of given project be accessible to other projects
     # Create 3 projects and each contains 1 pod and 1 service
     Given the env is using multitenant network
@@ -308,13 +312,15 @@ Feature: networking isolation related scenarios
   # @author bmeng@redhat.com
   # @case_id OCP-12659
   @admin
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @4.16 @4.15 @4.14 @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
   @network-openshiftsdn @network-multitenant
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
   @upgrade-sanity
   @proxy @noproxy
-  @heterogeneous @arm64 @amd64
+  @s390x @ppc64le @heterogeneous @arm64 @amd64
+  @hypershift-hosted
+  @critical
   Scenario: OCP-12659:SDN Make the network of given projects be accessible globally
     # Create 3 projects and each contains 1 pod and 1 service
     Given the env is using multitenant network

@@ -37,12 +37,14 @@ gem 'azure_mgmt_network', '~>0.17.0'
 # gem 'timers'
 ## Logging
 gem 'term-ansicolor'
+
 ## Webauto
 gem 'watir'
 gem 'headless'
-gem 'selenium-webdriver'
+gem 'selenium-webdriver', '4.8.0'
 gem 'protobuf'
 gem 'reportportal'
+
 ## Docs
 # beware https://github.com/pry/pry/issues/1465
 #        https://bugzilla.redhat.com/show_bug.cgi?id=1257578
@@ -73,3 +75,4 @@ gem 'oga' # replacemen for nokogiri when we thought we can workaround it
 # gem 'terminal-table'
 gem 'parallel_tests', '~>3.8.1'
 gem 'slack-ruby-client'
+gem 'activesupport', '= 7.0.8'

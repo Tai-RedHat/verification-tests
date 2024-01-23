@@ -6,8 +6,9 @@ Feature: Storage of Hostpath plugin testing
   @upgrade-sanity
   @singlenode
   @proxy @noproxy @disconnected @connected
-  @heterogeneous @arm64 @amd64
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+    @s390x @ppc64le @heterogeneous @arm64 @amd64
+  @4.16 @4.15 @4.14 @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @storage
   Scenario Outline: Create hostpath pv with access mode and reclaim policy
     Given I have a project with proper privilege
     Given I obtain test data file "storage/hostpath/local.yaml"
@@ -51,8 +52,11 @@ Feature: Storage of Hostpath plugin testing
       | ls /etc/origin/hostpath/<%= project.name %>/test |
     Then the step should <step_status>
 
-    @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-    @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+    @rosa @osd_ccs @aro
+    @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+    @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+    @hypershift-hosted
+    @critical
     Examples:
       | case_id          | access_mode   | reclaim_policy | pv_status | step_status |
       | OCP-9639:Storage | ReadWriteOnce | Retain         | released  | succeed     | # @case_id OCP-9639

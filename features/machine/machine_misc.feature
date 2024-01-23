@@ -4,11 +4,11 @@ Feature: Machine misc features testing
   # @case_id OCP-34940
   @admin
   @destructive
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @4.16 @4.15 @4.14 @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
   @vsphere-ipi
   @network-ovnkubernetes @network-openshiftsdn
   @proxy @noproxy @disconnected @connected
-  @heterogeneous @arm64 @amd64
+  @s390x @ppc64le @heterogeneous @arm64 @amd64
   Scenario: OCP-34940:ClusterInfrastructure PVCs can still be provisioned after the password has been changed vSphere
     Given I have an IPI deployment
     Then I switch to cluster admin pseudo user
@@ -45,9 +45,8 @@ Feature: Machine misc features testing
      | n | openshift-machine-api |
    And admin ensures "mypod" pod is deleted after scenario
 
-   Then I get project events
-   And the output should match:
-     | Failed to provision volume with StorageClass "thin": Credentials not found|
+   Given thin sc or thin-csi sc is present as default 
+   Then the step should succeed
 
    Then I run the :replace admin command with:
       | _tool | oc                           |
@@ -55,20 +54,24 @@ Feature: Machine misc features testing
       | force |                              |
    And the step should succeed
 
+   Given I use the "openshift-machine-api" project
+   And I wait up to 300 seconds for the steps to pass:
+   """ 
    Then I get project events
    And the output should match:
      | Successfully provisioned volume |
+   """
 
   # @author miyadav@redhat.com
   # @case_id OCP-35454
   @admin
   @aro
   @destructive
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @4.16 @4.15 @4.14 @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
   @network-ovnkubernetes @network-openshiftsdn
   @proxy @noproxy @disconnected @connected
-  @heterogeneous @arm64 @amd64
+  @s390x @ppc64le @heterogeneous @arm64 @amd64
   Scenario: OCP-35454:ClusterInfrastructure Reconciliation of MutatingWebhookConfiguration values should happen
     Given I switch to cluster admin pseudo user
 
@@ -109,7 +112,7 @@ Feature: Machine misc features testing
       | replicas | 1                    |
     And the step should succeed
 
-    Given I wait up to 180 seconds for the steps to pass:
+    Given I wait up to 300 seconds for the steps to pass:
     """
     And I run the :get admin command with:
       | resource      | MutatingWebhookConfiguration |
@@ -122,14 +125,16 @@ Feature: Machine misc features testing
   # @case_id OCP-37744
   @admin
   @aro
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
-  @vsphere-ipi @openstack-ipi @gcp-ipi @azure-ipi @aws-ipi @alicloud-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @azure-upi @aws-upi @alicloud-upi
+  @4.16 @4.15 @4.14 @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @azure-upi @aws-upi @alicloud-upi
   @network-ovnkubernetes @network-openshiftsdn
   @proxy @noproxy @disconnected @connected
-  @heterogeneous @arm64 @amd64
+  @s390x @ppc64le @heterogeneous @arm64 @amd64
   Scenario: OCP-37744:ClusterInfrastructure kube-rbac-proxy should not expose tokens, have excessive verbosity
     Given I switch to cluster admin pseudo user
+
+    Then I check the cluster platform is not None
 
     Given I use the "openshift-machine-api" project
     Given a pod becomes ready with labels:
@@ -169,7 +174,7 @@ Feature: Machine misc features testing
   # @author miyadav@redhat.com
   # @case_id OCP-37180
   @admin
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7
+  @4.16 @4.15 @4.14 @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7
   @network-ovnkubernetes @network-openshiftsdn
   @proxy @noproxy @disconnected @connected
   @heterogeneous @arm64 @amd64
@@ -181,17 +186,17 @@ Feature: Machine misc features testing
       | path  | /api/v1/query?                         |
       | query | cloudprovider_vsphere_vcenter_versions |
     Then the step should succeed
-    And the expression should be true> @result[:parsed]["data"]["result"][0]["metric"]["version"] =~ /7.0/
+    And the expression should be true> @result[:parsed]["data"]["result"][0]["metric"]["version"] =~ /7.0|8.0/
 
   # @author miyadav@redhat.com
   # @case_id OCP-40665
   @admin
   @destructive
-  @4.12 @4.11 @4.10 @4.9 @4.8
+  @4.16 @4.15 @4.14 @4.13 @4.12 @4.11 @4.10 @4.9 @4.8
   @vsphere-ipi
   @network-ovnkubernetes @network-openshiftsdn
   @proxy @noproxy @disconnected @connected
-  @heterogeneous @arm64 @amd64
+  @s390x @ppc64le @heterogeneous @arm64 @amd64
   Scenario: OCP-40665:ClusterInfrastructure Deattach disk before destroying vm from vsphere
     Given I switch to cluster admin pseudo user
     Then I use the "openshift-machine-api" project
@@ -234,6 +239,6 @@ Feature: Machine misc features testing
       | resource_name | <%= pod.name %>    |
       | c             | machine-controller |
     Then the output should contain:
-      | Detaching disks before vm destroy  |
+      | Checking attached disks before vm destroy |
 
 

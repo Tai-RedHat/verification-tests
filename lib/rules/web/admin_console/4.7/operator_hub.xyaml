@@ -39,6 +39,16 @@ create_operand:
   action: click_tab
   action: click_create_operand_button
   action: submit_changes
+create_operand_anzo:
+  params:
+    tab_name: Anzo Operator
+    button_text: Create
+  action: goto_csv_detail_page
+  action: click_tab
+  action: click_button
+  action: wait_box_loaded
+  action: switch_to_form_view
+  action: submit_changes
 set_operand_name:
   params:
     label_text: Name
@@ -498,7 +508,6 @@ check_default_view_is_form_view:
   element:
     selector:
       xpath: //input[@type='radio' and @value='form' and @checked]
-open_edit_form_view: {}
 switch_to_yaml_view:
   params:
     radio_text: yaml
@@ -509,7 +518,7 @@ switch_to_yaml_view:
 switch_to_form_view:
   element:
     selector:
-      id: form
+      xpath: //input[@value='form']
     op: click
 select_installed_namespace:
   action: click_project_list_dropdown
@@ -610,7 +619,7 @@ check_column_header_for_one_namespace:
 check_column_header_for_all_namespace:
   action: check_managed_namespace_column_header
   action: check_namesapce_column_header
-  
+
 check_managed_namespace_column_header:
   params:
     column_name: Managed Namespaces
@@ -628,7 +637,7 @@ check_namesapce_column_header_missing:
 check_managed_namespace_column_installed_for_one_ns:
   params:
     col_index: 2
-  action: check_operator_column_one_namespace 
+  action: check_operator_column_one_namespace
 check_managed_namespace_column_installed_for_all_ns:
   params:
     col_index: 2
@@ -638,7 +647,7 @@ check_managed_namespace_column_installed_for_all_ns:
 check_namespace_column_installed_for_one_ns_under_all_projects:
   params:
     col_index: 2
-  action: check_operator_column_one_namespace 
+  action: check_operator_column_one_namespace
 check_namespace_column_installed_for_all_ns_under_all_projects:
   params:
     col_index: 2
@@ -648,7 +657,7 @@ check_namespace_column_installed_for_all_ns_under_all_projects:
 check_managed_namespace_column_installed_for_one_ns_under_all_projects:
   params:
     col_index: 3
-  action: check_operator_column_one_namespace 
+  action: check_operator_column_one_namespace
 check_managed_namespace_column_installed_for_all_ns_under_all_projects:
   params:
     col_index: 3
@@ -656,11 +665,11 @@ check_managed_namespace_column_installed_for_all_ns_under_all_projects:
 
 check_operator_column_one_namespace:
   elements:
-  - selector: 
+  - selector:
       xpath: //h1[contains(text(),'<operator_name>')]//ancestor::tr[@data-test-rows='resource-row']/td[<col_index>]//a[contains(text(),'<project_name>') and @href='/k8s/cluster/namespaces/<project_name>']
 check_operator_column_all_namespace:
   elements:
-  - selector: 
+  - selector:
       xpath: //h1[contains(text(),'<operator_name>')]//ancestor::tr[@data-test-rows='resource-row']/td[<col_index>][contains(text(),'All Namespaces')]
 check_logging_operator_filtered_out:
   elements:
@@ -687,23 +696,19 @@ check_k8sresource_dropdown_items:
       xpath: //li//span[contains(@class,'co-resource-item__resource-name') and contains(text(),'<item>')]
 check_required_badge_on_operator_installation_page:
   elements:
-  - selector:
-      xpath: //span[contains(@class,'co-resource-item')]//span[contains(text(),'Ditto')]/following::span[contains(text(),'Required')]
-check_required_badge_during_installation:
-  elements:
-  - selector:
-      xpath: //span[contains(@class,'co-resource-item')]//span[contains(text(),'Ditto')]/following::span[contains(text(),'Required')]
+  - selector: &required_badge
+      xpath: //span[@data-test='status-text' and contains(text(),'Required')]
 check_create_operand_button_and_requied_badge_when_ready:
   elements:
   - selector:
-      xpath: //h2[contains(@class,'co-clusterserviceversion-install__heading') and contains(.,'Installed operator') and contains(.,'operand required')]
+      <<: *required_badge
     timeout: 30
   - selector: &create_operand_button
       xpath: //button[contains(.,'Create Ditto') and not(disabled)]
 check_create_operand_button_and_requied_badge_on_csv_details:
   elements:
   - selector:
-      xpath: //h4[contains(@class,'pf-c-alert__title') and contains(.,'required')]
+      xpath: //h4[contains(@class,'pf-c-alert__title') and contains(.,'Ditto required')]
   action: check_operand_button_link
 check_operand_button_link:
   element:

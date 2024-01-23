@@ -6,12 +6,14 @@ Feature: testing for parameter fsType
   @upgrade-sanity
   @singlenode
   @proxy @noproxy @disconnected @connected
-  @heterogeneous @arm64 @amd64
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+    @s390x @ppc64le @heterogeneous @arm64 @amd64
+  @4.16 @4.15 @4.14 @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @storage
   Scenario Outline: persistent volume formated with fsType
     Given I have a project
-    And admin clones storage class "sc-<%= project.name %>" from ":default" with:
-      | ["parameters"]["fsType"] | <fsType> |
+    And admin creates new in-tree storageclass with:
+      | ["metadata"]["name"]     | sc-<%= project.name %> |
+      | ["parameters"]["fsType"] | <fsType>               |
     Given I obtain test data file "storage/misc/pvc-with-storageClassName.json"
     When I run oc create over "pvc-with-storageClassName.json" replacing paths:
       | ["metadata"]["name"]         | mypvc                  |
@@ -36,6 +38,7 @@ Feature: testing for parameter fsType
       | ls | /mnt/testfile |
     Then the step should succeed
 
+    @rosa @osd_ccs @aro
     @gcp-ipi
     @gcp-upi
     Examples:
@@ -44,6 +47,7 @@ Feature: testing for parameter fsType
       | OCP-10094:Storage | ext4   | gce  | # @case_id OCP-10094
       | OCP-10096:Storage | xfs    | gce  | # @case_id OCP-10096
 
+    @rosa @osd_ccs @aro
     @aws-ipi
     @aws-upi
     Examples:
@@ -54,6 +58,8 @@ Feature: testing for parameter fsType
 
     @openstack-ipi
     @openstack-upi
+    @hypershift-hosted
+    @critical
     Examples:
       | case_id           | fsType | type   |
       | OCP-10097:Storage | ext3   | cinder | # @case_id OCP-10097

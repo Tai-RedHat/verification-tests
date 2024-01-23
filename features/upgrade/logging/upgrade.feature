@@ -6,16 +6,18 @@ Feature: Logging upgrading related features
   @destructive
   @upgrade-prepare
   @users=upuser1,upuser2
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
-  @vsphere-ipi @openstack-ipi @gcp-ipi @azure-ipi @aws-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @azure-upi @aws-upi
+  @vsphere-ipi @openstack-ipi @gcp-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @vsphere-upi @openstack-upi @gcp-upi @azure-upi @aws-upi @alicloud-upi
   @singlenode
   @noproxy @connected
   @upgrade
   @network-ovnkubernetes @network-openshiftsdn
   @amd64
+  @hypershift-hosted
+  @4.15 @4.14 @4.13 @4.12 @4.11 @4.10 @4.8 @4.7 @4.6
   Scenario: Cluster logging checking during cluster upgrade - prepare
-    Given I check if the remaining_resources in woker nodes meet the requirements for logging stack
+    Given logging service is removed successfully
+    And I check if the remaining_resources in woker nodes meet the requirements for logging stack
     Given I switch to the first user
     Given I have "json" log pod in project "logging-upg-prep-1"
     And I have "json" log pod in project "logging-upg-prep-share"
@@ -23,8 +25,10 @@ Feature: Logging upgrading related features
       | group_name | project-group-share                |
       | user_name  | <%= user(1, switch: false).name %> |
     Given logging operators are installed successfully
-    Given I have clusterlogging with persistent storage ES
-    Then I wait for the project "logging-upg-prep-1" logs to appear in the ES pod
+    And I have clusterlogging with persistent storage ES
+    Given I wait for the "infra" index to appear in the ES pod with labels "es-node-master=true"
+    And I wait for the "app" index to appear in the ES pod with labels "es-node-master=true"
+    And I wait for the project "logging-upg-prep-1" logs to appear in the ES pod
     When I check the cronjob status
     Then the step should succeed
 
@@ -50,7 +54,7 @@ Feature: Logging upgrading related features
   @destructive
   @upgrade-check
   @users=upuser1,upuser2
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @4.15 @4.14 @4.13 @4.12 @4.11 @4.10 @4.8 @4.7 @4.6
   @vsphere-ipi @openstack-ipi @gcp-ipi @azure-ipi @aws-ipi @alicloud-ipi
   @vsphere-upi @openstack-upi @gcp-upi @azure-upi @aws-upi @alicloud-upi
   @singlenode
@@ -58,6 +62,7 @@ Feature: Logging upgrading related features
   @upgrade
   @network-ovnkubernetes @network-openshiftsdn
   @amd64
+  @hypershift-hosted
   Scenario: Cluster logging checking during cluster upgrade
     Given I switch to the first user
     Given I create a project with non-leading digit name

@@ -6,14 +6,16 @@ Feature: cluster-logging-operator related test
   @admin
   @destructive
   @commonlogging
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+  @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @logging5.6 @logging5.7 @logging5.8 @logging5.5
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
   @upgrade-sanity
   @singlenode
   @network-ovnkubernetes @network-openshiftsdn
   @proxy @noproxy
   @heterogeneous @arm64 @amd64
+  @hypershift-hosted
   Scenario: OCP-21333:Logging ServiceMonitor Object for collector is deployed along with cluster logging
     # start from logging 5.5, the ds/collector is recreated several times when deploy clusterlogging
     # here add a step to wait for index infra to appear in ES before checking servicemonitor to appear
@@ -36,8 +38,9 @@ Feature: cluster-logging-operator related test
   @destructive
   @singlenode
   @4.7 @4.6
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+  @logging5.5
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
   @network-ovnkubernetes @network-openshiftsdn
   @proxy @noproxy
   Scenario: OCP-22492:Logging Scale Elasticsearch nodes by nodeCount 2->3->4 in clusterlogging
@@ -92,8 +95,9 @@ Feature: cluster-logging-operator related test
   @admin
   @destructive
   @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+  @logging5.5
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
   @singlenode
   @network-ovnkubernetes @network-openshiftsdn
   @proxy @noproxy
@@ -159,13 +163,16 @@ Feature: cluster-logging-operator related test
   @console
   @destructive
   @commonlogging
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+  @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @logging5.6 @logging5.7 @logging5.5
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
   @singlenode
   @proxy @noproxy @disconnected @connected
   @network-ovnkubernetes @network-openshiftsdn
   @heterogeneous @arm64 @amd64
+  @hypershift-hosted
+  @critical
   Scenario: OCP-33721:Logging OpenShift Logging dashboard
     Given I switch to the first user
     And the first user is cluster-admin
@@ -178,7 +185,7 @@ Feature: cluster-logging-operator related test
       | card_name | Elastic Cluster Status |
     Then the step should succeed
     """
-    Given evaluation of `["Elastic Nodes", "Elastic Shards", "Elastic Documents", "Total Index Size on Disk", "Elastic Pending Tasks", "Elastic JVM GC time", "Elastic JVM GC Rate", "Elastic Query/Fetch Latency | Sum", "Elastic Query Rate | Top 5", "CPU", "Elastic JVM Heap Used", "Elasticsearch Disk Usage", "File Descriptors In Use", "FluentD emit count", "FluentD Buffer Availability", "Elastic rx bytes", "Elastic Index Failure Rate", "FluentD Output Error Rate"]` is stored in the :cards clipboard
+    Given evaluation of `["Elastic Nodes", "Elastic Shards", "Elastic Documents", "Total Index Size on Disk", "Elastic Pending Tasks", "Elastic JVM GC time", "Elastic JVM GC Rate", "Elastic Query/Fetch Latency | Sum", "Elastic Query Rate | Top 5", "CPU", "Elastic JVM Heap Used", "Elasticsearch Disk Usage", "File Descriptors In Use", "FluentD emit count", "FluentD Buffer Usage", "Elastic rx bytes", "Elastic Index Failure Rate", "FluentD Output Error Rate"]` is stored in the :cards clipboard
     And I repeat the following steps for each :card in cb.cards:
     """
     When I perform the :check_monitoring_dashboard_card web action with:
@@ -193,8 +200,9 @@ Feature: cluster-logging-operator related test
   @singlenode
   @proxy @noproxy @disconnected @connected
   @4.7 @4.6
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+  @logging5.6 @logging5.7 @logging5.8
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
   @network-ovnkubernetes @network-openshiftsdn
   Scenario: OCP-33868:Logging Expose more fluentd knobs to support optimizing fluentd for different environments - Invalid Values
     Given I register clean-up steps:
@@ -202,18 +210,20 @@ Feature: cluster-logging-operator related test
     Given I delete the clusterlogging instance
     Then the step should succeed
     """
-    Given I obtain test data file "logging/clusterlogging/cl_fluentd-buffer_Invalid.yaml"
+    Given the correct directory name of clusterlogging file is stored in the :cl_dir clipboard
+    And I obtain test data file "logging/clusterlogging/<%= cb.cl_dir %>//cl_fluentd-buffer_Invalid.yaml"
     When I run the :create client command with:
       | f | cl_fluentd-buffer_Invalid.yaml |
     Then the step should fail
 
   # @author gkarager@redhat.com
   # @case_id OCP-33793
+  @flaky
   @admin
   @destructive
   @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
   @singlenode
   @proxy @noproxy @disconnected @connected
   @network-ovnkubernetes @network-openshiftsdn
@@ -241,14 +251,16 @@ Feature: cluster-logging-operator related test
   @admin
   @destructive
   @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+  @logging5.6 @logging5.7
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
   @singlenode
   @proxy @noproxy @disconnected @connected
   @network-ovnkubernetes @network-openshiftsdn
   @heterogeneous @arm64 @amd64
   Scenario: OCP-33894:Logging Fluentd optimizing variable changes trigger new deployment
-    Given I obtain test data file "logging/clusterlogging/cl_fluentd-buffer_default.yaml"
+    Given the correct directory name of clusterlogging file is stored in the :cl_dir clipboard
+    And I obtain test data file "logging/clusterlogging/<%= cb.cl_dir %>/cl_fluentd-buffer_default.yaml"
     And I create clusterlogging instance with:
       | remove_logging_pods | true                           |
       | crd_yaml            | cl_fluentd-buffer_default.yaml |
@@ -261,10 +273,10 @@ Feature: cluster-logging-operator related test
     And evaluation of `File.read("fluent.conf")` is stored in the :fluent_conf clipboard
     And the expression should be true> (cb.fluent_conf).include? "flush_mode interval"
     When I run the :patch client command with:
-      | resource      | clusterlogging                                                         |
-      | resource_name | instance                                                               |
-      | p             | {"spec": {"forwarder": {"fluentd": {"buffer": {"flushMode":"lazy"}}}}} |
-      | type          | merge                                                                  |
+      | resource      | clusterlogging                                                          |
+      | resource_name | instance                                                                |
+      | p             | {"spec": {"collection": {"fluentd": {"buffer": {"flushMode":"lazy"}}}}} |
+      | type          | merge                                                                   |
     Then the step should succeed
     Given I wait up to 120 seconds for the steps to pass:
     """

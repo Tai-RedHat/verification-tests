@@ -48,6 +48,21 @@ module BushSlicer
          dig('spec', 'providerSpec', 'value', 'location')
     end
 
+    def azure_vnet(user: nil, cached: true, quiet: false)
+       raw_resource(user: user, cached: cached ,quiet: quiet).
+         dig('spec', 'providerSpec', 'value', 'vnet')
+    end
+
+    def azure_subnet(user: nil, cached: true, quiet: false)
+       raw_resource(user: user, cached: cached ,quiet: quiet).
+         dig('spec', 'providerSpec', 'value', 'subnet')
+    end
+
+    def azure_network_resource_group(user: nil, cached: true, quiet: false)
+       raw_resource(user: user, cached: cached ,quiet: quiet).
+         dig('spec', 'providerSpec', 'value', 'networkResourceGroup')
+    end
+
     def gcp_region(user: nil, cached: true, quiet: false)
        raw_resource(user: user, cached: cached ,quiet: quiet).
          dig('spec', 'providerSpec', 'value', 'region')
@@ -61,6 +76,11 @@ module BushSlicer
     def gcp_service_account(user: nil, cached: true, quiet: false)
        raw_resource(user: user, cached: cached ,quiet: quiet).
          dig('spec', 'providerSpec', 'value', 'serviceAccounts')
+    end
+
+    def gcp_network_interface(user: nil, cached: true, quiet: false)
+      raw_resource(user: user, cached: cached ,quiet: quiet).
+        dig('spec', 'providerSpec', 'value', 'networkInterfaces')
     end
 
     def aws_ami_id(user: nil, cached: true, quiet: false)
@@ -121,6 +141,11 @@ module BushSlicer
     def vsphere_template(user: nil, cached: true, quiet: false)
        raw_resource(user: user, cached: cached ,quiet: quiet).
          dig('spec', 'providerSpec', 'value', 'template')
+    end
+
+    def vsphere_networkName(user: nil, cached: true, quiet: false)
+      raw_resource(user: user, cached: cached ,quiet: quiet).
+        dig('spec', 'providerSpec', 'value', 'network', 'devices', 0, 'networkName')
     end
 
     def deleting?(user: nil, cached: true, quiet: false)

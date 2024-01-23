@@ -51,37 +51,9 @@ Given /^the env is using one of the listed network plugins:$/ do |table|
       skip_this_scenario
     end
   else
-    _host = node.host rescue nil
-    unless _host
-      step "I store the schedulable nodes in the clipboard"
-      _host = node.host
-    end
-
-    step %Q/I run the ovs commands on the host:/, table([[
-      "ovs-ofctl dump-flows br0 -O openflow13 | grep table=253"
-    ]])
-    unless @result[:success]
-      raise "failed to get table 253 from the open flows."
-    end
-
-    plugin_type = @result[:response][-17]
-    case plugin_type
-    when "0"
-      plugin_name = "subnet"
-    when "1"
-      plugin_name = "multitenant"
-    when "2"
-      plugin_name = "networkpolicy"
-    else
-      raise "unknown network plugins."
-    end
-    logger.info("environment network plugin name: #{plugin_name}")
-
-    unless plugin_list.include? plugin_name
-      logger.warn "the env network plugin is #{plugin_name} but expecting #{plugin_list}."
-      logger.warn "We will skip this scenario"
-      skip_this_scenario
-    end
+    logger.warn "the env network is not SDN cluster."
+    logger.warn "We will skip this scenario"
+    skip_this_scenario
   end
 end
 
@@ -537,7 +509,7 @@ Given /^the node's default gateway is stored in the#{OPT_SYM} clipboard$/ do |cb
   ensure_admin_tagged
   step "I select a random node's host"
   cb_name = "gateway" unless cb_name
-  @result = host.exec_admin("ip route show default | awk '/default/ {print $3}'")
+  @result = host.exec_admin("ip route show default | cat | awk '/default/ {print $3}'")
 
   cb[cb_name] = @result[:response].chomp
   unless IPAddr.new(cb[cb_name])
@@ -724,17 +696,15 @@ Given /^the default interface on nodes is stored in the#{OPT_SYM} clipboard$/ do
   network_type = network_operator.network_type(user: admin)
   case network_type
   when "OVNKubernetes"
-    # use -4 to limit output to just `default` interface, fixed in later iproute2 versions
-    step %Q/I run command on the node's ovnkube pod:/, table("| ip | -4 | route | show | default |")
+    cb[cb_name] = "br-ex"
   when "OpenShiftSDN"
     step %Q/I run command on the node's sdn pod:/, table("| ip | -4 | route | show | default |")
+    cb[cb_name] = @result[:response].split("\n").first.split[4]
   else
     logger.warn "unknown network_type"
     logger.warn "We will skip this scenario"
     skip_this_scenario
   end
-  # OVN uses `br-ex` and `-` is not a word char, so we have to split on whitespace
-  cb[cb_name] = @result[:response].split("\n").first.split[4]
   logger.info "The node's default interface is stored in the #{cb_name} clipboard as #{cb[cb_name]}."
 end
 
@@ -989,10 +959,10 @@ Given /^the vxlan tunnel address of node "([^"]*)" is stored in the#{OPT_SYM} cl
   case network_type
   when "OVNKubernetes"
     inf_name="ovn-k8s-mp0"
-    @result = host.exec_admin("ifconfig #{inf_name.split("\n")[0]}")
+    @result = host.exec_admin("ifconfig #{inf_name.split("\n")[0]} | cat")
     cb[cb_address] = @result[:response].match(/\d{1,3}\.\d{1,3}.\d{1,3}.\d{1,3}/)[0]
   when "OpenShiftSDN"
-    @result = host.exec_admin("ifconfig tun0")
+    @result = host.exec_admin("ifconfig tun0 | cat")
     cb[cb_address] = @result[:response].match(/\d{1,3}\.\d{1,3}.\d{1,3}.\d{1,3}/)[0]
   else
     raise "unable to find interface address or networkType"
@@ -1056,74 +1026,97 @@ Given /^I store "([^"]*)" node's corresponding default networkType pod name in t
   logger.info "node's corresponding networkType pod name is stored in the #{cb_pod_name} clipboard as #{cb[cb_pod_name]}."
 end
 
-Given /^I store the ovnkube-master#{OPT_QUOTED} leader pod in the#{OPT_SYM} clipboard(?: using node #{QUOTED})?$/ do |ovndb, cb_leader_name, node_name|
+#To make this step interoperable between IC and non IC versions, resourcetype var will be treated as pod or raft depending on release version 
+#as on IC cluters we need to find pod's corresponding ovnkube-node to access its DB
+Given /^I store the ovnkube-master#{OPT_QUOTED} leader pod in the#{OPT_SYM} clipboard(?: for #{QUOTED} using node #{QUOTED})?$/ do |ovndb, cb_leader_name, resourcetype, node_name|
   ensure_admin_tagged
   cb_leader_name ||= "#{ovndb}_leader"
-  case ovndb
-  when "north"
-    ovsappctl_cmd = %w(ovs-appctl -t /var/run/ovn/ovnnb_db.ctl cluster/status OVN_Northbound)
-  else
-    ovsappctl_cmd = %w(ovs-appctl -t /var/run/ovn/ovnsb_db.ctl cluster/status OVN_Southbound)
-  end
-
-  if node_name == nil
-    # if we don't specify a node pick the oldest pod to check leader status
-    ovn_pods = BushSlicer::Pod.get_labeled("app=ovnkube-master", project: project("openshift-ovn-kubernetes", switch: false),
-                                           user: admin, quiet: true) { |pod, hash|
-      # make sure we pick a Running master
-      pod.ready?(user: admin, cached: false, quiet: true)
-    }
-    # use the oldest ovn_pod, hoping that it is the master
-    ovn_pods.sort!{ |a,b| a.props[:created] <=> b.props[:created]}
-
-  else
-    ovn_pods = BushSlicer::Pod.get_labeled("app=ovnkube-master", project: project("openshift-ovn-kubernetes", switch: false),
-                                           user: admin, quiet: true) { |pod, hash|
-      # always make sure it is ready
-      pod.node_name == node_name && pod.ready?(user: admin, cached: false, quiet: true)
-    }
-    # there should be only one pod.
-  end
-
-  cluster_state = nil
-  ovn_pods.each{ |ovn_pod|
-    @result = ovn_pod.exec(*ovsappctl_cmd, as: admin, container: "northd")
-    if @result[:success]
-      cluster_state = @result[:response].strip
-      break
+  if env.version_lt("4.14", user: user) 
+    case ovndb
+    when "north"
+      ovsappctl_cmd = %w(ovs-appctl -t /var/run/ovn/ovnnb_db.ctl cluster/status OVN_Northbound)
+    else
+      ovsappctl_cmd = %w(ovs-appctl -t /var/run/ovn/ovnsb_db.ctl cluster/status OVN_Southbound)
     end
-  }
-  raise "Failed to execute network command!" unless cluster_state != nil
-  leader_id = cluster_state.match(/Leader:\s+(\S+)/)
-  # leader_id can be "self"
-  # Leader: self
-  if leader_id.nil? || leader_id[1] == "unknown"
-    raise "Unknown leader"
+    #for < 4.14, we would ignore pod resourcetype pmtr along with its node_name and proceed with normal <=4.13 flow 
+    if (resourcetype == "pod" && node_name != nil) || (resourcetype == nil && node_name == nil)
+      # if we don't specify a node pick the oldest pod to check leader status
+      ovn_pods = BushSlicer::Pod.get_labeled("app=ovnkube-master", project: project("openshift-ovn-kubernetes", switch: false),
+                                             user: admin, quiet: true) { |pod, hash|
+        # make sure we pick a Running master
+        pod.ready?(user: admin, cached: false, quiet: true)
+      }
+      # use the oldest ovn_pod, hoping that it is the master
+      ovn_pods.sort!{ |a,b| a.props[:created] <=> b.props[:created]}
+
+    else
+      ovn_pods = BushSlicer::Pod.get_labeled("app=ovnkube-master", project: project("openshift-ovn-kubernetes", switch: false),
+                                             user: admin, quiet: true) { |pod, hash|
+        # always make sure it is ready
+        pod.node_name == node_name && pod.ready?(user: admin, cached: false, quiet: true)
+      }
+      # there should be only one pod.
+    end
+
+    cluster_state = nil
+    ovn_pods.each{ |ovn_pod|
+      @result = ovn_pod.exec(*ovsappctl_cmd, as: admin, container: "northd")
+      if @result[:success]
+        cluster_state = @result[:response].strip
+        break
+      end
+    }
+    raise "Failed to execute network command!" unless cluster_state != nil
+    leader_id = cluster_state.match(/Leader:\s+(\S+)/)
+    # leader_id can be "self"
+    # Leader: self
+    if leader_id.nil? || leader_id[1] == "unknown"
+      raise "Unknown leader"
+    end
+    servers = cluster_state.match(/Servers:\n(.*)/m)
+    leader_line = servers[1].lines.find { |line| line.include? "(" + leader_id[1] }
+    unless leader_line
+      raise "Unable to find leader #{leader_id[1]}"
+    end
+    # Servers:
+    #   6e24 (6e24 at ssl:[fd2e:6f44:5dd8::81]:9643) (self) next_index=11214 match_index=11517
+    #   90fb (90fb at ssl:[fd2e:6f44:5dd8::68]:9643) next_index=11518 match_index=11517 last msg 350 ms ago
+    # Servers:
+    #   c977 (c977 at ssl:172.31.248.170:9643) next_index=3573 match_index=3572
+    #   d73f (d73f at ssl:172.31.248.168:9643) (self) next_index=3265 match_index=3572
+    # match first string in the parens, the everything from the first colon to a colon digit close-paren sequence
+    splits = leader_line.match(/\((\S+)[^:]+:\[?([^\]\[)]+)\]?:(\d+)\)/)
+    leader_node = splits.captures[1]
+    leader_pod = BushSlicer::Pod.get_labeled("app=ovnkube-master", project: project("openshift-ovn-kubernetes", switch: false),
+                                             user: admin, quiet: true) { |pod, hash|
+      pod.node_name == leader_node || pod.ip == leader_node
+    }.first
+    # update the cache so we can execute on the pod without specify the name
+    cache_resources leader_pod
+    cb[cb_leader_name] = leader_pod
+    logger.info "cb.#{cb_leader_name}.name = #{leader_pod.name}"
+    logger.info "cb.#{cb_leader_name}.node_name = #{leader_pod.node_name}"
+  elsif node_name == nil
+       logger.info "nil node_name var value means we don't care about resource specific db pod hence choosing a random ovnkube-node"
+       step "I select a random node's host"
+       ovnkube_db_pod = BushSlicer::Pod.get_labeled("app=ovnkube-node", project: project("openshift-ovn-kubernetes", switch: false), user: admin, quiet: true) { |pod, hash|
+       pod.node_name == node.name
+       }.first
+       cache_resources ovnkube_db_pod
+       cb.north_leader = ovnkube_db_pod
+       cb.south_leader = ovnkube_db_pod
+       else
+       logger.info "choosing resource specific ovnkube-node"
+       ovnkube_db_pod = BushSlicer::Pod.get_labeled("app=ovnkube-node", project: project("openshift-ovn-kubernetes", switch: false), 
+             user: admin, quiet: true) { |pod, hash|
+	    pod.node_name == node_name
+       }.first
+       cache_resources ovnkube_db_pod
+       #north or south leader doesn't make any sense on 4.14+ so regardless we define south or nouth, it will store ovnkube-node for defined test pod
+       cb.north_leader = ovnkube_db_pod
+       cb.south_leader = ovnkube_db_pod
+       end
   end
-  servers = cluster_state.match(/Servers:\n(.*)/m)
-  leader_line = servers[1].lines.find { |line| line.include? "(" + leader_id[1] }
-  unless leader_line
-    raise "Unable to find leader #{leader_id[1]}"
-  end
-  # Servers:
-  #   6e24 (6e24 at ssl:[fd2e:6f44:5dd8::81]:9643) (self) next_index=11214 match_index=11517
-  #   90fb (90fb at ssl:[fd2e:6f44:5dd8::68]:9643) next_index=11518 match_index=11517 last msg 350 ms ago
-  # Servers:
-  #   c977 (c977 at ssl:172.31.248.170:9643) next_index=3573 match_index=3572
-  #   d73f (d73f at ssl:172.31.248.168:9643) (self) next_index=3265 match_index=3572
-  # match first string in the parens, the everything from the first colon to a colon digit close-paren sequence
-  splits = leader_line.match(/\((\S+)[^:]+:\[?([^\]\[)]+)\]?:(\d+)\)/)
-  leader_node = splits.captures[1]
-  leader_pod = BushSlicer::Pod.get_labeled("app=ovnkube-master", project: project("openshift-ovn-kubernetes", switch: false),
-                                           user: admin, quiet: true) { |pod, hash|
-    pod.node_name == leader_node || pod.ip == leader_node
-  }.first
-  # update the cache so we can execute on the pod without specify the name
-  cache_resources leader_pod
-  cb[cb_leader_name] = leader_pod
-  logger.info "cb.#{cb_leader_name}.name = #{leader_pod.name}"
-  logger.info "cb.#{cb_leader_name}.node_name = #{leader_pod.node_name}"
-end
 
 # work-around nested clipboard Transform <% cb.south_leader.name %> issues by combining this step
 Given /^admin deletes the ovnkube-master#{OPT_QUOTED} leader$/ do |ovndb|
@@ -1158,12 +1151,13 @@ end
 Given /^OVN is functional on the cluster$/ do
   ensure_admin_tagged
   ovnkube_node_ds = daemon_set('ovnkube-node', project('openshift-ovn-kubernetes')).replica_counters(user: admin, cached: false)
-  ovnkube_master_ds = daemon_set('ovnkube-master', project('openshift-ovn-kubernetes')).replica_counters(user: admin, cached: false)
   desired_ovnkube_node_replicas, available_ovnkube_node_replicas = ovnkube_node_ds.values_at(:desired, :available)
-  desired_ovnkube_master_replicas, available_ovnkube_master_replicas = ovnkube_master_ds.values_at(:desired, :available)
-
   raise "OVN is not running correctly! Check one of your ovnkube-node pod" unless desired_ovnkube_node_replicas == available_ovnkube_node_replicas && available_ovnkube_node_replicas != 0
-  raise "OVN is not running correctly! Check one of your ovnkube-master pod" unless desired_ovnkube_master_replicas == available_ovnkube_master_replicas && available_ovnkube_master_replicas != 0
+  if env.version_lt("4.14", user: user)
+    ovnkube_master_ds = daemon_set('ovnkube-master', project('openshift-ovn-kubernetes')).replica_counters(user: admin, cached: false)
+    desired_ovnkube_master_replicas, available_ovnkube_master_replicas = ovnkube_master_ds.values_at(:desired, :available)
+    raise "OVN is not running correctly! Check one of your ovnkube-master pod" unless desired_ovnkube_master_replicas == available_ovnkube_master_replicas && available_ovnkube_master_replicas != 0
+  end
 end
 
 Given /^I enable multicast for the "(.+?)" namespace$/ do | project_name |
@@ -1301,7 +1295,7 @@ Given /^the node's MTU value is stored in the#{OPT_SYM} clipboard$/ do |cb_node_
   end
   # OVN uses `br-ex` and `-` is not a word char, so we have to split on whitespace
   inf_name = @result[:response].split("\n").first.split[4]
-  @result = host.exec_admin("ip a show #{inf_name}")
+  @result = host.exec_admin("ip a show #{inf_name}| cat")
   cb[cb_node_mtu] = @result[:response].split(/mtu /)[1][0,4]
   logger.info "Node's MTU value is stored in the #{cb_node_mtu} clipboard as #{cb[cb_node_mtu]}."
 end
@@ -1374,8 +1368,8 @@ Given /^the IPsec is enabled on the cluster$/ do
   ensure_admin_tagged
   _admin = admin
   network_operator = BushSlicer::NetworkOperator.new(name: "cluster", env: env)
-  default_network = network_operator.default_network(user: admin)
-  unless default_network["ipsecConfig"]
+  config = network_operator.ovn_kubernetes_config(user: admin)
+  unless config && config["ipsecConfig"]
     logger.warn "env doesn't have IPSec enabled"
     logger.warn "We will skip this scenario"
     skip_this_scenario
@@ -1391,15 +1385,13 @@ Given /^the node's active nmcli connection is stored in the#{OPT_SYM} clipboard$
   logger.info "Node's active nmcli connection uuid is stored in the #{cb_name} clipboard as #{cb[cb_name]}"
 end
 
-Given /^I save multus pod on master node to the#{OPT_SYM} clipboard$/ do | cb_name |
+Given /^I save multus pod on node "([^"]*)" to the#{OPT_SYM} clipboard$/ do | node_name,cb_name |
   ensure_admin_tagged
   cb_name ||= :multuspod
-  master_nodes = env.nodes.select { |n| n.schedulable? && n.is_master? }
-  master_node_names = master_nodes.collect { |n| n.name }
   cb[cb_name] = BushSlicer::Pod.get_labeled("app=multus", project: project("openshift-multus", switch: false), user: admin) { |pod, hash|
-     master_node_names.include?(pod.node_name)
+    node_name.include?(pod.node_name)
   }.first.name
-  logger.info "The multus pod is stored to the #{cb[cb_name]} clipboard."
+  logger.info "The multus pod on node #{node_name} is stored to the #{cb[cb_name]} clipboard."
 end
 
 Given /^I disable multicast for the "(.+?)" namespace$/ do | project_name |
@@ -1518,18 +1510,26 @@ Given /^I switch the ovn gateway mode on this cluster$/ do
     end
   end
   raise "Failed to patch network operator or apply config map for gateway mode" unless @result[:success]
-  logger.info "Waiting upto 240 sec for network operator to change status to Progressing as a result of patch or config map operation"
-  @result = admin.cli_exec(:wait, resource: "co", resource_name: "network", for: "condition=PROGRESSING=True", timeout: "240s")
-  raise "Patch or config map application was successful but CNO didn't change status to Progressing" unless @result[:success]
-  @result = admin.cli_exec(:rollout_status, resource: "daemonset", name: "ovnkube-master", n: "openshift-ovn-kubernetes")
+
+  if env.version_lt("4.14", user: user)
+    logger.info "Waiting upto 240 sec for network operator to change status to Progressing as a result of patch or config map operation"
+    @result = admin.cli_exec(:wait, resource: "co", resource_name: "network", for: "condition=PROGRESSING=True", timeout: "240s")
+    raise "Patch or config map application was successful but CNO didn't change status to Progressing" unless @result[:success]
+    @result = admin.cli_exec(:rollout_status, resource: "daemonset", name: "ovnkube-master", n: "openshift-ovn-kubernetes")
+  else
+    logger.info "Waiting upto 900 sec for network operator to change status to Progressing as a result of patch"
+    @result = admin.cli_exec(:wait, resource: "co", resource_name: "network", for: "condition=PROGRESSING=True", timeout: "900s")
+    raise "Patch application was successful but CNO didn't change status to Progressing" unless @result[:success]
+    @result = admin.cli_exec(:rollout_status, resource: "daemonset", name: "ovnkube-node", n: "openshift-ovn-kubernetes")
+  end
   raise "Failed to rollout masters" unless @result[:success]
 end
 
 Given /^the cluster is not migration from sdn plugin$/ do
   ensure_admin_tagged
   _admin = admin
-  @result = _admin.cli_exec(:get, resource: "network.operator", output: "jsonpath={.items[*].spec.migration}")
-  if @result[:stdout]["networkType"]
+  @result = _admin.cli_exec(:get, resource: "network.operator", output: "jsonpath={.items[*].spec.migration.networkType}")
+  if @result[:stdout]["OVNKubernetes"]
     logger.warn "the cluster is migration from sdn plugin"
     logger.warn "We will skip this scenario"
     skip_this_scenario
@@ -1605,16 +1605,102 @@ Given /^I store kubernetes elected leader pod for ovnkube-master in the#{OPT_SYM
   cb_leader_name ||= "leader_pod"
   step %/I switch to cluster admin pseudo user/
   step %/I use the "openshift-ovn-kubernetes" project/
-  cm_annotation = config_map('ovn-kubernetes-master').annotations(key: 'control-plane.alpha.kubernetes.io/leader')
-  # the annotation result is a string reprensation of a JSON, convert it to a
-  # yaml object for easier access
-  annotation_hash = YAML.load(cm_annotation)
-  holder_id =  annotation_hash['holderIdentity']
-  ### cli way
-  # @result= admin.cli_exec(:get, namespace: "openshift-ovn-kubernetes", resource: "pod",  o: 'yaml', fieldSelector: "spec.nodeName=#{holder_id}")
-  # cb[cb_leader_name] = pod(@result[:parsed]["items"][0]['metadata']['name'])
-  ###  oop way
+  if env.version_lt("4.13", user: user)
+    cm_annotation = config_map('ovn-kubernetes-master').annotations(key: 'control-plane.alpha.kubernetes.io/leader')
+    # the annotation result is a string reprensation of a JSON, convert it to a
+    # yaml object for easier access
+    annotation_hash = YAML.load(cm_annotation)
+    holder_id =  annotation_hash['holderIdentity']
+  elsif env.version_eq("4.13", user: user)
+    @result = admin.cli_exec(:get, resource: 'lease', o: "jsonpath={.items[*].spec.holderIdentity}")
+    holder_id = @result[:response]
+  else
+    @result = admin.cli_exec(:get, resource: 'lease', resource_name: "ovn-kubernetes-master", o: "jsonpath={.spec.holderIdentity}")
+    holder_id = @result[:response]
+  end
   pods = project.pods(by:user)
   target_pod = pods.select {|p| p.props[:node_name] == holder_id }.first
   cb[cb_leader_name ] = target_pod
 end
+
+Given /^the plugin is openshift-ovs-networkpolicy on the cluster$/ do
+  ensure_admin_tagged
+  @result = admin.cli_exec(:get, resource: "clusternetwork", output: "jsonpath={.items[*].pluginName}")
+  if @result[:response] != "redhat/openshift-ovs-networkpolicy"
+    logger.warn "The openshift-ovs-networkpolicy plugin is not used in the cluster" 
+    skip_this_scenario
+  end
+end
+
+Given /^the OVN joint network CIDR is patched in the node$/ do 
+  ensure_admin_tagged
+  @result = admin.cli_exec(:get, resource: "network.operator", output: "jsonpath={.items[*].spec.defaultNetwork.ovnKubernetesConfig.v4InternalSubnet}")
+  unless @result[:response].include? "100.66.0"
+    logger.warn "JointNetworkCIDR is not patched"
+    skip_this_scenario
+  end
+end
+
+Given /^the cluster is migrated from sdn$/ do
+  ensure_admin_tagged
+  _admin = admin
+  @result = _admin.cli_exec(:get, resource: "network.operator", output: "jsonpath={.items[*].spec.migration.networkType}")
+  unless @result[:stdout]["OVNKubernetes"]
+    logger.warn "the cluster is not migration from sdn plugin"
+    logger.warn "We will skip this scenario"
+    skip_this_scenario
+  end
+end
+
+Given /^make sure no coredump on the master hosts$/ do
+  ensure_admin_tagged
+
+  env.nodes.select { |n| n.schedulable? && n.is_master? }.each do |n|
+    @result = n.host.exec("coredumpctl list")
+    unless @result[:stdout].include? "No coredumps found"
+      logger.info "the cluster master already including coredumps package"
+      skip_this_scenario
+    end
+  end
+end
+
+Given /^the cluster is not migration from ovn plugin$/ do
+  ensure_admin_tagged
+  _admin = admin
+  @result = _admin.cli_exec(:get, resource: "network.operator", output: "jsonpath={.items[*].spec.migration.networkType}")
+  if @result[:stdout]["OpenShiftSDN"]
+    logger.warn "the cluster is migration from sdn plugin"
+    logger.warn "We will skip this scenario"
+    skip_this_scenario
+  end
+end
+
+Given /^the cluster is not proxy cluster$/ do
+  ensure_admin_tagged
+  @result = admin.cli_exec(:get, resource: "proxy",resource_name: "cluster", output: "jsonpath={.status.httpProxy}")
+  unless @result[:stdout].empty?
+    logger.warn "the cluster has http proxy, will skip this scenario"
+    skip_this_scenario
+  end
+
+  @result = admin.cli_exec(:get, resource: "proxy",resource_name: "cluster", output: "jsonpath={.status.httpsProxy}")
+  unless @result[:stdout].empty?
+    logger.warn "the cluster has https proxy, will skip this scenario"
+    skip_this_scenario
+  end
+end
+
+Given /^the corresponding version ovn masterDB components ds is deleted$/ do
+  ensure_admin_tagged
+  if env.version_lt("4.14", user: user)
+    step 'admin ensures "ovnkube-master" ds is deleted from the "openshift-ovn-kubernetes" project'
+    step %Q/admin executes existing pods die with labels:/, table(%{
+      | ovnkube-master |
+    })
+  else
+    step 'admin ensures "ovnkube-node" ds is deleted from the "openshift-ovn-kubernetes" project'
+    step %Q/admin executes existing pods die with labels:/, table(%{
+      | ovnkube-node |
+    })
+  end
+end 

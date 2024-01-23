@@ -3,4 +3,4 @@ kind: OperatorGroup
 metadata:
   name: openshift-operators-redhat
   namespace: openshift-operators-redhat
-  spec: {}
+spec: {}

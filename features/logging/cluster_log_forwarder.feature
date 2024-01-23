@@ -9,8 +9,8 @@ Feature: cluster log forwarder features
   @singlenode
   @proxy @noproxy @disconnected @connected
   @4.7 @4.6
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
   @network-ovnkubernetes @network-openshiftsdn
   Scenario: OCP-25989:Logging ClusterLogForwarder `default` behavior testing
     Given the master version >= "4.6"
@@ -139,11 +139,12 @@ Feature: cluster log forwarder features
   @destructive
   @singlenode
   @4.7 @4.6
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+  @logging5.6 @logging5.7 @logging5.8 @logging5.5
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
   @network-ovnkubernetes @network-openshiftsdn
   @proxy @noproxy @disconnected @connected
-  @arm64 @amd64 @heterogeneous
+  @heterogeneous @arm64 @amd64
   Scenario: OCP-29843:Logging ClusterLogForwarder: Forward logs to fluentd as insecure
     Given I switch to the first user
     And I have a project
@@ -159,6 +160,14 @@ Feature: cluster log forwarder features
 
     Given I switch to cluster admin pseudo user
     And I use the "openshift-logging" project
+    Given the correct directory name of clusterlogging file is stored in the :cl_dir clipboard
+    And I obtain test data file "logging/clusterlogging/<%= cb.cl_dir %>/fluentd_only.yaml"
+    When I create clusterlogging instance with:
+      | remove_logging_pods | true              |
+      | crd_yaml            | fluentd_only.yaml |
+      | check_status        | false             |
+    Then the step should succeed
+
     Given admin ensures "instance" cluster_log_forwarder is deleted from the "openshift-logging" project after scenario
     And I obtain test data file "logging/clusterlogforwarder/fluentd/insecure/clusterlogforwarder.yaml"
     When I process and create:
@@ -166,12 +175,7 @@ Feature: cluster log forwarder features
       | p | URL=udp://fluentdserver.<%= cb.fluentd_proj.name %>.svc:24224 |
     Then the step should succeed
     And I wait for the "instance" cluster_log_forwarder to appear
-
-    Given I obtain test data file "logging/clusterlogging/fluentd_only.yaml"
-    When I create clusterlogging instance with:
-      | remove_logging_pods | true              |
-      | crd_yaml            | fluentd_only.yaml |
-    Then the step should succeed
+    And I wait until fluentd is ready
 
     Given I use the "<%= cb.fluentd_proj.name %>" project
     And I wait up to 300 seconds for the steps to pass:
@@ -204,6 +208,14 @@ Feature: cluster log forwarder features
 
     Given I switch to cluster admin pseudo user
     And I use the "openshift-logging" project
+    Given the correct directory name of clusterlogging file is stored in the :cl_dir clipboard
+    And I obtain test data file "logging/clusterlogging/<%= cb.cl_dir %>/fluentd_only.yaml"
+    When I create clusterlogging instance with:
+      | remove_logging_pods | true              |
+      | crd_yaml            | fluentd_only.yaml |
+      | check_status        | false             |
+    Then the step should succeed
+
     Given admin ensures "instance" cluster_log_forwarder is deleted from the "openshift-logging" project after scenario
     And I obtain test data file "logging/clusterlogforwarder/fluentd/secure/clusterlogforwarder.yaml"
     When I process and create:
@@ -211,12 +223,7 @@ Feature: cluster log forwarder features
       | p | URL=tls://fluentdserver.<%= cb.fluentd_proj.name %>.svc:24224 |
     Then the step should succeed
     And I wait for the "instance" cluster_log_forwarder to appear
-
-    Given I obtain test data file "logging/clusterlogging/fluentd_only.yaml"
-    When I create clusterlogging instance with:
-      | remove_logging_pods | true              |
-      | crd_yaml            | fluentd_only.yaml |
-    Then the step should succeed
+    And I wait until fluentd is ready
 
     Given I use the "<%= cb.fluentd_proj.name %>" project
     And I wait up to 300 seconds for the steps to pass:
@@ -230,12 +237,14 @@ Feature: cluster log forwarder features
       | infra-container.log |
     """
     @upgrade-sanity
+    @logging5.6 @logging5.7 @logging5.8 @logging5.5
     @singlenode
     @proxy @noproxy @connected
-    @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-    @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+    @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+    @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
     @network-ovnkubernetes @network-openshiftsdn
-    @arm64 @amd64 @heterogeneous
+    @heterogeneous @arm64 @amd64
+    @critical
     Examples:
       | case_id           | auth_type         |
       | OCP-29844:Logging | mTLS_share        | # @case_id OCP-29844
@@ -264,7 +273,8 @@ Feature: cluster log forwarder features
       | f | <file> |
     Then the step should succeed
     And I wait for the "instance" cluster_log_forwarder to appear
-    Given I obtain test data file "logging/clusterlogging/example_indexmanagement.yaml"
+    Given the correct directory name of clusterlogging file is stored in the :cl_dir clipboard
+    And I obtain test data file "logging/clusterlogging/<%= cb.cl_dir %>/example_indexmanagement.yaml"
     When I create clusterlogging instance with:
       | remove_logging_pods | true                         |
       | crd_yaml            | example_indexmanagement.yaml |
@@ -298,8 +308,9 @@ Feature: cluster log forwarder features
 
     @singlenode
     @proxy @noproxy @disconnected @connected
-    @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-    @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+    @logging5.6 @logging5.7 @logging5.8 @logging5.5
+    @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+    @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
     @network-ovnkubernetes @network-openshiftsdn
     Examples:
       | case_id           | file                                 | app_pipeline_name     | infra_pipeline_name   | audit_pipeline_name   |
@@ -313,8 +324,9 @@ Feature: cluster log forwarder features
   @singlenode
   @proxy @noproxy @disconnected @connected
   @4.7 @4.6
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+  @logging5.6 @logging5.7 @logging5.8
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
   @network-ovnkubernetes @network-openshiftsdn
   Scenario: OCP-33627:Logging Forward logs to remote-syslog - config error
     Given the master version >= "4.6"
@@ -348,6 +360,14 @@ Feature: cluster log forwarder features
 
     Given I switch to cluster admin pseudo user
     And I use the "openshift-logging" project
+    Given the correct directory name of clusterlogging file is stored in the :cl_dir clipboard
+    And I obtain test data file "logging/clusterlogging/<%= cb.cl_dir %>/fluentd_only.yaml"
+    When I create clusterlogging instance with:
+      | remove_logging_pods | true              |
+      | crd_yaml            | fluentd_only.yaml |
+      | check_status        | false             |
+    Then the step should succeed
+
     Given admin ensures "instance" cluster_log_forwarder is deleted from the "openshift-logging" project after scenario
     Given I obtain test data file "logging/clusterlogforwarder/rsyslog/<file>"
     When I process and create:
@@ -355,12 +375,8 @@ Feature: cluster log forwarder features
       | p | URL=<protocol>://rsyslogserver.<%= cb.syslog_proj.name %>.svc:514 |
     Then the step should succeed
     And I wait for the "instance" cluster_log_forwarder to appear
+    And I wait until fluentd is ready
 
-    Given I obtain test data file "logging/clusterlogging/fluentd_only.yaml"
-    When I create clusterlogging instance with:
-      | remove_logging_pods | true              |
-      | crd_yaml            | fluentd_only.yaml |
-    Then the step should succeed
     Given I use the "<%= cb.syslog_proj.name %>" project
     And I wait up to 300 seconds for the steps to pass:
     """
@@ -376,9 +392,11 @@ Feature: cluster log forwarder features
     @upgrade-sanity
     @singlenode
     @proxy @noproxy @disconnected @connected
-    @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-    @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+    @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+    @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
     @network-ovnkubernetes @network-openshiftsdn
+    @logging5.6 @logging5.7 @logging5.8 @logging5.5
+    @critical
     Examples:
       | case_id           | file                  | protocol |
       | OCP-32643:Logging | rsys_clf_RFC3164.yaml | tls      | # @case_id OCP-32643
@@ -390,11 +408,13 @@ Feature: cluster log forwarder features
   @admin
   @destructive
   @4.10 @4.9 @4.8 @4.7 @4.6
+  @logging5.6 @logging5.7 @logging5.8
   @singlenode
   @proxy @noproxy @connected
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
   @network-ovnkubernetes @network-openshiftsdn
+  @critical
   Scenario: OCP-32697:Logging Forward logs to different kafka topics
     Given I switch to the first user
     And I create a project with non-leading digit name
@@ -413,7 +433,8 @@ Feature: cluster log forwarder features
       | from_file   | ca-bundle.crt=ca.crt |
     Then the step should succeed
     Given I obtain test data file "logging/clusterlogforwarder/kafka/amq/13_ClusterLogForwarder_to_kafka_template.yaml"
-    Given I obtain test data file "logging/clusterlogging/fluentd_only.yaml"
+    Given the correct directory name of clusterlogging file is stored in the :cl_dir clipboard
+    And I obtain test data file "logging/clusterlogging/<%= cb.cl_dir %>/fluentd_only.yaml"
     # The following step will send logs to topic-logging-infra,topic-logging-app,topic-logging-audit
     When I process and create:
       | f | 13_ClusterLogForwarder_to_kafka_template.yaml |
@@ -441,8 +462,9 @@ Feature: cluster log forwarder features
   @singlenode
   @proxy @noproxy @connected
   @4.7 @4.6
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+  @logging5.6 @logging5.7 @logging5.8
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
   @network-ovnkubernetes @network-openshiftsdn
   Scenario: OCP-32628:Logging Fluentd continues to ship logs even when one of multiple destination is down
     # create project to generate logs
@@ -470,7 +492,8 @@ Feature: cluster log forwarder features
     Then the step should succeed
     And I wait for the "instance" cluster_log_forwarder to appear
     # create clusterlogging instance
-    Given I obtain test data file "logging/clusterlogging/fluentd_only.yaml"
+    Given the correct directory name of clusterlogging file is stored in the :cl_dir clipboard
+    And I obtain test data file "logging/clusterlogging/<%= cb.cl_dir %>/fluentd_only.yaml"
     When I create clusterlogging instance with:
       | remove_logging_pods | true              |
       | crd_yaml            | fluentd_only.yaml |
@@ -547,17 +570,19 @@ Feature: cluster log forwarder features
     And evaluation of `JSON.parse(@result[:stdout])['count']` is stored in the :app_log_count_2 clipboard
     And the expression should be true> cb.app_log_count_2 > 0
     """
+
   # @author kbharti@redhat.com
   # @case_id OCP-39786
+  @flaky
   @admin
   @destructive
   @4.11 @4.10 @4.9 @4.8 @4.7
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
   @singlenode
   @proxy @noproxy @connected
   @network-ovnkubernetes @network-openshiftsdn
-  @heterogeneous @arm64 @amd64
+  @s390x @ppc64le @heterogeneous @arm64 @amd64
   Scenario: OCP-39786:Logging Send logs to both external fluentd and internalES
     #Creating secure fluentd receiver
     Given I switch to cluster admin pseudo user
@@ -586,7 +611,8 @@ Feature: cluster log forwarder features
     Then the step should succeed
     And I wait for the "secure-forward" config_map to appear
     # Creating Cluster Logging Instance
-    Given I obtain test data file "logging/clusterlogging/example_indexmanagement.yaml"
+    Given the correct directory name of clusterlogging file is stored in the :cl_dir clipboard
+    Given I obtain test data file "logging/clusterlogging/<%= cb.cl_dir %>/example_indexmanagement.yaml"
     When I create clusterlogging instance with:
       | remove_logging_pods | true                         |
       | crd_yaml            | example_indexmanagement.yaml |

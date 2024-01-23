@@ -33,7 +33,8 @@ Feature: Cases to test forward logs to external elasticsearch
     Then the step should succeed
     And I wait for the "instance" cluster_log_forwarder to appear
 
-    Given I obtain test data file "logging/clusterlogging/fluentd_only.yaml"
+    Given the correct directory name of clusterlogging file is stored in the :cl_dir clipboard
+    And I obtain test data file "logging/clusterlogging/<%= cb.cl_dir %>/fluentd_only.yaml"
     When I create clusterlogging instance with:
       | remove_logging_pods | true              |
       | crd_yaml            | fluentd_only.yaml |
@@ -87,11 +88,12 @@ Feature: Cases to test forward logs to external elasticsearch
     """
 
     @singlenode
-    @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-    @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+    @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+    @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
     @network-ovnkubernetes @network-openshiftsdn
     @proxy @noproxy @disconnected @connected
-    @arm64 @amd64 @heterogeneous
+    @heterogeneous @arm64 @amd64
+    @logging5.6 @logging5.7 @logging5.8 @logging5. @logging5.5
     Examples:
       | case_id           | scheme | client_auth | file                 |
       | OCP-29845:Logging | https  | true        | clf-with-secret.yaml | # @case_id OCP-29845
@@ -131,7 +133,8 @@ Feature: Cases to test forward logs to external elasticsearch
     Then the step should succeed
     And I wait for the "instance" cluster_log_forwarder to appear
 
-    Given I obtain test data file "logging/clusterlogging/fluentd_only.yaml"
+    Given the correct directory name of clusterlogging file is stored in the :cl_dir clipboard
+    And I obtain test data file "logging/clusterlogging/<%= cb.cl_dir %>/fluentd_only.yaml"
     When I create clusterlogging instance with:
       | remove_logging_pods | true              |
       | crd_yaml            | fluentd_only.yaml |
@@ -200,12 +203,13 @@ Feature: Cases to test forward logs to external elasticsearch
     """
 
     @heterogeneous @arm64 @amd64
-    @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-    @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+    @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+    @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
     @proxy @noproxy @disconnected @connected
     @network-ovnkubernetes @network-openshiftsdn
+    @logging5.6 @logging5.7 @logging5.8 @logging5.5
     Examples:
       | case_id           | version | scheme | client_auth | username | password | secret_name |
-      | OCP-41807:Logging | 7.16    | https  | true        | test1    | redhat   | test1       | # @case_id OCP-41807
+      | OCP-41807:Logging | 7.17    | https  | true        | test1    | redhat   | test1       | # @case_id OCP-41807
       | OCP-41805:Logging | 6.8     | http   | false       | test2    | redhat   | test2       | # @case_id OCP-41805
       | OCP-41806:Logging | 6.8     | https  | false       | test4    | redhat   | test4       | # @case_id OCP-41806

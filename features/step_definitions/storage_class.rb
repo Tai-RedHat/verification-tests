@@ -230,3 +230,67 @@ Given /^default storageclass is stored in the#{OPT_SYM} clipboard$/ do | cb_name
   cb[cb_name] = _sc
   cache_resources _sc
 end
+
+When /^admin creates new in-tree storageclass with:$/ do |table|
+  ensure_admin_tagged
+  project_name = project.name
+
+  platform = infrastructure('cluster').platform.downcase 
+  case platform
+  when 'aws'
+    provisioner = 'aws-ebs'
+  when 'gcp' 
+    provisioner = 'gce-pd'
+  when 'azure'
+    provisioner = 'azure-disk'
+  when 'vsphere'
+    provisioner = 'vsphere-volume'
+  when 'openstack'
+    provisioner = 'cinder'
+  else
+    logger.warn "Unsupported platform `#{platform}`"
+    skip_this_scenario
+  end
+
+  # load file 
+  file = "#{BushSlicer::HOME}/testdata/storage/misc/in-tree-storageClass-template.yaml"
+  sc_hash = YAML.load_file file
+
+  # replace paths from table
+  sc_hash["parameters"] ||= {}
+  table.raw.each do |path, value|
+      eval "sc_hash#{path} = YAML.load value" unless path == ''
+  end
+
+  # After CSI Migration the default volumeType change to 'gp3', but most aws local zones nodes don't support gp3 type volume
+  if platform == "aws"  
+    sc_hash["parameters"]["type"] = "gp2"
+  end
+
+  # if no volumeBindingMode exists in tc, we need to pass vSphere=Immediate, others=WaitForFirstConsumer
+  if !sc_hash.dig("volumeBindingMode")
+    if platform == "vsphere"  
+      sc_hash["volumeBindingMode"] = "Immediate" 
+    else 
+      sc_hash["volumeBindingMode"] = "WaitForFirstConsumer"
+    end
+  end
+
+  # replace the provisioner value according to platform wise 
+  sc_hash["provisioner"] = "kubernetes.io/#{provisioner}"
+  
+  logger.info("Creating StorageClass:\n#{sc_hash.to_yaml}")
+  @result = BushSlicer::StorageClass.create(by: admin, spec: sc_hash)
+
+  if @result[:success]
+    cache_resources *@result[:resource]
+
+    # register mandatory clean-up
+    _sc = @result[:resource]
+    _admin = admin
+    teardown_add { _sc.ensure_deleted(user: _admin) }
+  else
+    logger.error(@result[:response])
+    raise "failed to clone StorageClass from: #{src_sc}"
+  end  
+end

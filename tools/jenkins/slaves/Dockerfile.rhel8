@@ -12,21 +12,24 @@ RUN set -x && \
     dnf config-manager --enable $NEW_REPOS && \
     dnf config-manager --save --setopt=\*.skip_if_unavailable=1 $NEW_REPOS && \
     yum repolist enabled && \
-    yum -y update && \
-    INSTALL_PKGS="bsdtar" && \
+    yum -y update --exclude java-1.8.0-openjdk-headless && \
+    INSTALL_PKGS="bsdtar mesa-libgbm" && \
     dnf -y install --allowerasing --setopt=skip_missing_names_on_install=False,tsflags=nodocs $INSTALL_PKGS && \
-    dnf -y install --allowerasing --setopt=skip_missing_names_on_install=False,tsflags=nodocs https://dl.google.com/linux/direct/google-chrome-stable_current_x86_64.rpm && \
-    dnf config-manager --save --setopt=google-chrome.skip_if_unavailable=true && \
-    CHROMEDRIVER_URL="https://chromedriver.storage.googleapis.com" && \
-    CHROMEDRIVER_VERSION=$(curl -sSL "$CHROMEDRIVER_URL/LATEST_RELEASE") && \
-    curl -sSL "$CHROMEDRIVER_URL/$CHROMEDRIVER_VERSION/chromedriver_linux64.zip" | bsdtar --no-same-owner --no-same-permissions -xvf - -C /usr/local/bin && \
+    yum -y module reset nodejs && \
+    yum -y module enable nodejs:18 && \
+    yum -y module install nodejs:18/common && \
+    CFT_VERSION='117.0.5938.88' && \
+    npx @puppeteer/browsers install chrome@${CFT_VERSION} && \
+    find /chrome -type f -name chrome -exec ln -s {} /usr/local/bin/chrome \; && \
+    npx @puppeteer/browsers install chromedriver@${CFT_VERSION} && \
+    find /chromedriver -type f -name chromedriver -exec ln {} /usr/local/bin/chromedriver \; && \
     GECKODRIVER_SPEC="https://api.github.com/repos/mozilla/geckodriver/releases/latest" && \
     GECKODRIVER_RE='^.*"browser_download_url": ?"(http[^"]*linux64.tar.gz)".*$' && \
     curl -sSL $GITHUB_API_CURL_OPTS "$GECKODRIVER_SPEC" | sed -En "s#$GECKODRIVER_RE#\1#p" | xargs -d '\n' curl -sSL | bsdtar -xvf - -C /usr/local/bin && \
     chmod +x /usr/local/bin/chromedriver /usr/local/bin/geckodriver && \
     dnf -y install --setopt=tsflags=nodocs https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm && \
     dnf -y install --setopt=tsflags=nodocs https://cbs.centos.org/kojifiles/packages/git-crypt/0.6.0/2.el8/x86_64/git-crypt-0.6.0-2.el8.x86_64.rpm && \
-    yum module reset ruby && \
+    yum -y module reset ruby && \
     yum -y module enable ruby:2.7 && \
     yum -y module install ruby:2.7 && \
     yum -y clean all && \

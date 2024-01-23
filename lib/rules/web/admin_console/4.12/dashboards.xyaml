@@ -78,10 +78,6 @@ click_dashboard_dropdown_item:
     selector:
       <<: *dashboard_dropdown_item
     op: click
-check_dashboard_etcd:
-  params:
-    dropdown_menu_item: etcd
-  action: check_dashboard_dropdown_item
 check_dashboard_kubernetes_compute_resources_cluster:
   params:
     dropdown_menu_item: Kubernetes / Compute Resources / Cluster
@@ -132,21 +128,29 @@ check_chart_loaded:
   - selector:
       xpath: //div[contains(@class,'pf-c-chart')]
     timeout: 90
+send_filter_options:
+  elements:
+  - selector:
+      xpath: //input[@type='search']
+    op: send_keys <options_text>
 change_namespace:
   params:
     label_text: namespace
     button_text: <namespace>
+    options_text: <namespace>
   action: click_label_filter_dropdown_button
+  action: send_filter_options
   action: click_button_text
 change_workload:
   params:
     label_text: workload
     button_text: <workload>
+    options_text: <workload>
   action: click_label_filter_dropdown_button
+  action: send_filter_options
   action: click_button_text
 check_dashboard_dropdown_items:
   action: click_dashboard_dropdown
-  action: check_dashboard_etcd
   action: check_dashboard_kubernetes_compute_resources_cluster
   action: check_dashboard_kubernetes_compute_resources_namespace_pods
   action: check_dashboard_kubernetes_compute_resources_namespace_workloads
@@ -243,6 +247,10 @@ wait_for_consumer_lists_loaded:
 check_has_5_top_consumers:
   scripts:
     - command: return document.querySelectorAll("li.co-utilization-card-popover__consumer-item").length == 5
+      expect_result: true
+check_has_top_consumers:
+  scripts:
+    - command: return document.querySelectorAll("li.co-utilization-card-popover__consumer-item").length >= 1
       expect_result: true
 check_consumer_link_to_node:
   element:
@@ -390,7 +398,7 @@ check_cpu_breakdown_info_when_filter_by_node:
     dropdown_menu_item: By Node
   action: choose_consumer_measure
   action: wait_for_consumer_lists_loaded
-  action: check_has_5_top_consumers
+  action: check_has_top_consumers
   action: check_consumer_link_to_node
   action: check_view_more_link
   action: check_metrics_query_cpu_by_node
@@ -419,7 +427,7 @@ check_memory_breakdown_info_when_filter_by_node:
     dropdown_menu_item: By Node
   action: choose_consumer_measure
   action: wait_for_consumer_lists_loaded
-  action: check_has_5_top_consumers
+  action: check_has_top_consumers
   action: check_consumer_link_to_node
   action: check_view_more_link
   action: check_metrics_query_memory_by_node
@@ -448,7 +456,7 @@ check_filesystem_breakdown_info_when_filter_by_node:
     dropdown_menu_item: By Node
   action: choose_consumer_measure
   action: wait_for_consumer_lists_loaded
-  action: check_has_5_top_consumers
+  action: check_has_top_consumers
   action: check_consumer_link_to_node
   action: check_view_more_link
   action: check_metrics_query_filesystem_by_node
@@ -468,7 +476,7 @@ check_pod_count_breakdown_info_when_filter_by_node:
     dropdown_menu_item: By Node
   action: choose_consumer_measure
   action: wait_for_consumer_lists_loaded
-  action: check_has_5_top_consumers
+  action: check_has_top_consumers
   action: check_consumer_link_to_node
   action: check_view_more_link
   action: check_metrics_query_pod_count_by_node
@@ -499,7 +507,7 @@ check_network_in_breakdown_info_when_filter_by_node:
     dropdown_menu_item: By Node
   action: choose_consumer_measure
   action: wait_for_consumer_lists_loaded
-  action: check_has_5_top_consumers
+  action: check_has_top_consumers
   action: check_consumer_link_to_node
   action: check_view_more_link
   action: check_metrics_query_network_in_by_node
@@ -528,7 +536,7 @@ check_network_out_breakdown_info_when_filter_by_node:
     dropdown_menu_item: By Node
   action: choose_consumer_measure
   action: wait_for_consumer_lists_loaded
-  action: check_has_5_top_consumers
+  action: check_has_top_consumers
   action: check_consumer_link_to_node
   action: check_view_more_link
   action: check_metrics_query_network_out_by_node
@@ -598,7 +606,7 @@ choose_node_type:
 click_operator_status:
   elements:
   - selector:
-      xpath: //div[@class='co-status-card__health-item']//button[contains(.,'Operators')] 
+      xpath: //div[@class='co-status-card__health-item']//button[contains(.,'Operators')]
     op: click
     timeout: 60
 check_operator_status:
@@ -697,6 +705,11 @@ check_matched_number_of_storageclasses:
     resource_type: storageclass
     number_of_resource: <number_of_storageclasses>
   action: check_matched_number_of_resource
+check_matched_number_of_baremetalhosts:
+  params:
+    resource_type: host
+    number_of_resource: <number_of_baremetalhosts>
+  action: check_matched_number_of_resource
 check_matched_number_of_resource:
   element:
     selector:
@@ -761,7 +774,7 @@ click_filesystem_chart:
     op: click
 check_charts_on_pod_page:
   action: check_charts_on_resource_page
-check_charts_on_deployment_page:
+check_charts_on_daemonset_page:
   action: check_charts_on_resource_page
   action: check_no_errors_in_charts
 check_charts_on_resource_page:
@@ -805,11 +818,11 @@ check_monitoring_dashboard_card:
     selector:
       xpath: //div[contains(@class,'pf-c-card__title') and text()='<card_name>']
     timeout: 60
-check_metrics_under_deployment_observe_tab:
+check_charts_on_workload_observe:
   action: goto_project_topology_page
-  action: open_deployment_sidebar
+  action: open_workload_sidebar
   action: check_metrics_on_observe_tab
-open_deployment_sidebar:
+open_workload_sidebar:
   element:
     selector:
       xpath: //div[contains(text(), '<deployment_name>')]

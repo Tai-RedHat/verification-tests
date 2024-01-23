@@ -40,6 +40,16 @@ create_operand:
   action: click_create_operand_button
   action: wait_box_loaded
   action: submit_changes
+create_operand_anzo:
+  params:
+    tab_name: Anzo Operator
+    button_text: Create
+  action: goto_csv_detail_page
+  action: click_tab
+  action: click_button
+  action: wait_box_loaded
+  action: switch_to_form_view
+  action: submit_changes
 set_operand_name:
   params:
     label_text: Name
@@ -66,10 +76,9 @@ set_k8s_resource:
     label_text: K8s Resource Prefix
     filter_text: <k8s_resource>
   action: click_label_dropdown_button
-  action: set_strings_in_dropdown_filter_box
   elements:
   - selector:
-      xpath: //ul//a[@id='<k8s_resource>-Project-link' and contains(@class,'dropdown__menu-item')]
+      xpath: //ul//a[@id='<k8s_resource>-Project-link']
     op: click
 set_pod_count:
   params:
@@ -185,6 +194,7 @@ check_operand_des_during_creating_operand:
   action: goto_csv_detail_page
   action: click_tab
   action: click_create_operand_button
+  action: switch_to_form_view
   action: check_complete_description
   action: submit_changes
 create_catalog_source:
@@ -192,6 +202,7 @@ create_catalog_source:
     button_text: Create CatalogSource
     button_id: catalog-source-namespace
     radio_text: 1
+    filter_text: <item>
   action: goto_catalog_source_page
   action: click_button
   action: input_catalog_source_name
@@ -202,7 +213,9 @@ create_catalog_source:
     if_param: item
     ref:
     - click_radio_input
-    - select_resource_item
+    - click_button_by_id
+    - set_strings_in_dropdown_filter_box
+    - click_on_resource_name
   action: submit_changes
 subscribe_operator_to_namespace:
   params:
@@ -525,17 +538,12 @@ check_default_view_is_form_view:
   element:
     selector:
       xpath: //input[@type='radio' and @value='form' and @checked]
-open_edit_form_view:
-  params:
-    radio_text: form
-  action:
-    if_element:
-      selector:
-        xpath: //input[@data-checked-state='false' and @value='form']
-    ref: click_radio_input
 switch_to_yaml_view:
   params:
     radio_text: yaml
+  element:
+    selector:
+      xpath: //input[@value='yaml']
   scripts:
   - command: return document.querySelector("input[value=yaml]").scrollIntoView(false)
     expect_result: ~
@@ -628,8 +636,8 @@ check_installation_failure_message:
 check_view_error_button: {}
 check_customized_operator_purchase_link:
   params:
-    text: Purchase
-    link_url: https://test-remote-workflow/pricing
+    text: PurchaseTest
+    link_url: https://marketplace.redhat.com/en-us/operators/testargo?price
   action: check_link_and_text
 check_phase_status:
   elements:
@@ -738,23 +746,19 @@ check_k8sresource_dropdown_items:
       xpath: //li//span[contains(@class,'co-resource-item__resource-name') and contains(text(),'<item>')]
 check_required_badge_on_operator_installation_page:
   elements:
-  - selector:
-      xpath: //span[contains(@class,'co-resource-item')]//span[contains(text(),'Ditto')]/following::span[contains(text(),'Required')]
-check_required_badge_during_installation:
-  elements:
-  - selector:
-      xpath: //span[contains(@class,'co-resource-item')]//span[contains(text(),'Ditto')]/following::span[contains(text(),'Required')]
+  - selector: &required_badge
+      xpath: //span[@data-test='status-text' and contains(text(),'Required')]
 check_create_operand_button_and_requied_badge_when_ready:
   elements:
   - selector:
-      xpath: //h2[contains(@class,'co-clusterserviceversion-install__heading') and contains(.,'Installed operator') and contains(.,'operand required')]
+      <<: *required_badge
     timeout: 30
   - selector: &create_operand_button
       xpath: //button[contains(.,'Create Ditto') and not(disabled)]
 check_create_operand_button_and_requied_badge_on_csv_details:
   elements:
   - selector:
-      xpath: //h4[contains(@class,'pf-c-alert__title') and contains(.,'required')]
+      xpath: //h4[contains(@class,'pf-c-alert__title') and contains(.,'Ditto required')]
   action: check_operand_button_link
 check_operand_button_link:
   element:
@@ -841,14 +845,14 @@ check_resource_requirement_values:
 check_truncated_description:
   params:
     operand_kind: Application
-    operand_description: longlonglongveryveryverylong…
-  action: check_operand_description
+    operand_description: An Application
+  action: check_operand_description_not_contains
 check_complete_description:
   params:
     operand_kind: Application
-    operand_description: veryverylongAn Application is a group of Kubernetes resources as defined by a manifest
-  action: check_operand_description
-check_operand_description:
+    operand_description: veryAn Application is a group
+  action: check_operand_description_contains
+check_operand_description_contains:
   element:
     selector:
       xpath: //span[text()='<operand_kind>']/ancestor::article//iframe | //h1[text()='<operand_kind>']/ancestor::div//iframe
@@ -859,6 +863,20 @@ check_operand_description:
       var contains = false
       for (var i = 0; i < all_operands_iframs.length; i++) {
         contains = contains || all_operands_iframs[i].getAttribute('srcDoc').indexOf('<operand_description>') != -1 ? true : false
+      }
+      return contains
+    expect_result: true
+check_operand_description_not_contains:
+  element:
+    selector:
+      xpath: //span[text()='<operand_kind>']/ancestor::article//iframe | //h1[text()='<operand_kind>']/ancestor::div//iframe
+    timeout: 20
+  scripts:
+  - command: |
+      var all_operands_iframs = document.querySelectorAll('iframe')
+      var contains = false
+      for (var i = 0; i < all_operands_iframs.length; i++) {
+        contains = contains || all_operands_iframs[i].getAttribute('srcDoc').indexOf('<operand_description>') == -1 ? true : false
       }
       return contains
     expect_result: true
@@ -938,7 +956,7 @@ enable_plugin_from_install_page:
     op: click
 uninstall_operator_and_check_pluginremoval_msg:
   params:
-    check_msg: console plugins provided by this operator will be disabled and removed
+    check_msg: disabled and removed
   action: uninstall_operator_with_msg_check
 uninstall_operator_and_check_operandremoval_msg:
   params:
@@ -955,7 +973,7 @@ uninstall_operator_with_msg_check:
 check_no_plugin_message_on_uninstall_modal:
   params:
     item: Remove Subscription
-    content: console plugins provided by this operator will be disabled and removed
+    content: disabled and removed
   action: click_one_dropdown_action
   action: check_page_not_match
 toggle_plugin_status:

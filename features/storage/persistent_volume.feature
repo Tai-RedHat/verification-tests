@@ -7,8 +7,9 @@ Feature: Persistent Volume Claim binding policies
   @upgrade-sanity
   @singlenode
   @proxy @noproxy @disconnected @connected
-  @heterogeneous @arm64 @amd64
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+    @s390x @ppc64le @heterogeneous @arm64 @amd64
+  @4.16 @4.15 @4.14 @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @storage
   Scenario Outline: PVC with one accessMode can bind PV with all accessMode
     Given I have a project
 
@@ -39,8 +40,11 @@ Feature: Persistent Volume Claim binding policies
     And the "mypvc" PVC becomes bound to the "pv1-<%= project.name %>" PV
     And the "pv2-<%= project.name %>" PV status is :available
 
-    @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-    @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+    @rosa @osd_ccs @aro
+    @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+    @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+    @hypershift-hosted
+    @critical
     Examples:
       | case_id           | accessMode1   | accessMode2   | accessMode3   |
       | OCP-9702:Storage  | ReadOnlyMany  | ReadWriteMany | ReadWriteOnce | # @case_id OCP-9702
@@ -50,6 +54,7 @@ Feature: Persistent Volume Claim binding policies
   # @author yinzhou@redhat.com
   # @case_id OCP-11933
   @inactive
+  @storage
   Scenario: OCP-11933:Workloads deployment hook volume inheritance -- with persistentvolumeclaim Volume
     Given I have a project
     Given I obtain test data file "storage/misc/pvc.json"
@@ -79,8 +84,9 @@ Feature: Persistent Volume Claim binding policies
   @singlenode
   @proxy @noproxy @disconnected @connected
   @network-ovnkubernetes @network-openshiftsdn
-  @heterogeneous @arm64 @amd64
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+    @s390x @ppc64le @heterogeneous @arm64 @amd64
+  @4.16 @4.15 @4.14 @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @storage
   Scenario Outline: PV can not bind PVC which request more storage
     Given I have a project
     # PV is 100Mi and PVC is 1Gi
@@ -100,8 +106,11 @@ Feature: Persistent Volume Claim binding policies
     And the "pv-<%= project.name %>" PV status is :available
     And the "mypvc" PVC becomes :pending
 
-    @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-    @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+    @rosa @osd_ccs @aro
+    @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+    @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+    @hypershift-hosted
+    @critical
     Examples:
       | case_id           | access_mode   |
       | OCP-26880:Storage | ReadOnlyMany  | # @case_id OCP-26880
@@ -115,8 +124,9 @@ Feature: Persistent Volume Claim binding policies
   @singlenode
   @proxy @noproxy @disconnected @connected
   @network-ovnkubernetes @network-openshiftsdn
-  @heterogeneous @arm64 @amd64
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+    @s390x @ppc64le @heterogeneous @arm64 @amd64
+  @4.16 @4.15 @4.14 @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @storage
   Scenario Outline: PV can not bind PVC with mismatched accessMode
     Given I have a project
     Given I obtain test data file "storage/nfs/auto/pv-template.json"
@@ -141,8 +151,11 @@ Feature: Persistent Volume Claim binding policies
     And the "mypvc1" PVC becomes :pending
     And the "mypvc2" PVC becomes :pending
 
-    @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-    @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+    @rosa @osd_ccs @aro
+    @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+    @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+    @hypershift-hosted
+    @critical
     Examples:
       | case_id           | pv_access_mode | pvc_access_mode1 | pvc_access_mode2 |
       | OCP-26882:Storage | ReadOnlyMany   | ReadWriteMany    | ReadWriteOnce    | # @case_id OCP-26882

@@ -6,8 +6,9 @@ Feature: CSI Resizing related feature
   @singlenode
   @proxy @noproxy @disconnected @connected
   @network-ovnkubernetes @network-openshiftsdn
-  @heterogeneous @arm64 @amd64
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+    @s390x @ppc64le @heterogeneous @arm64 @amd64
+  @4.16 @4.15 @4.14 @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @storage
   Scenario Outline: Resize online volume from 1Gi to 2Gi
     Given I have a project
 
@@ -44,12 +45,14 @@ Feature: CSI Resizing related feature
     And the output should not contain:
       | No space left on device |
 
+    @rosa @osd_ccs @aro
     @gcp-ipi
     @gcp-upi
     Examples:
       | case_id           | sc_name      |
       | OCP-37479:Storage | standard-csi | # @case_id OCP-37479
 
+    @rosa @osd_ccs @aro
     @aws-ipi
     @aws-upi
     Examples:
@@ -58,6 +61,8 @@ Feature: CSI Resizing related feature
 
     @openstack-ipi
     @openstack-upi
+    @hypershift-hosted
+    @critical
     Examples:
       | case_id           | sc_name      |
       | OCP-37559:Storage | standard-csi | # @case_id OCP-37559
@@ -66,8 +71,9 @@ Feature: CSI Resizing related feature
   @singlenode
   @proxy @noproxy @disconnected @connected
   @network-ovnkubernetes @network-openshiftsdn
-  @heterogeneous @arm64 @amd64
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+    @s390x @ppc64le @heterogeneous @arm64 @amd64
+  @4.16 @4.15 @4.14 @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @storage
   Scenario Outline: Resize negative test
     Given I have a project
     Given I obtain test data file "storage/misc/pvc.json"
@@ -94,14 +100,17 @@ Feature: CSI Resizing related feature
     And the output should match:
       | Forbidden.*field can not be less than previous value |
 
+    @rosa @osd_ccs @aro
     @aws-ipi
     @aws-upi
+    @hypershift-hosted
     Examples:
       | case_id           | sc_name |
       | OCP-25809:Storage | gp2-csi | # @case_id OCP-25809
 
   # @author ropatil@redhat.com
   @admin
+  @storage
   Scenario Outline: CSI Resize offline volume expansion from 1Gi to 2Gi
     Given I have a project
 

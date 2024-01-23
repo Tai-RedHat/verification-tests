@@ -7,17 +7,22 @@ Feature: storage security check
   @singlenode
   @proxy @noproxy @disconnected @connected
   @network-ovnkubernetes @network-openshiftsdn
-  @heterogeneous @arm64 @amd64
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+    @s390x @ppc64le @heterogeneous @arm64 @amd64
+  @4.16 @4.15 @4.14 @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @storage
   Scenario Outline: volume security testing
     Given I have a project with proper privilege
+    And admin creates new in-tree storageclass with:
+      | ["metadata"]["name"] | sc-<%= project.name %> |
     Given I obtain test data file "storage/misc/pvc.json"
     When I run oc create over "pvc.json" replacing paths:
-      | ["metadata"]["name"] | mypvc1 |
+      | ["metadata"]["name"]         | mypvc1                 |
+      | ["spec"]["storageClassName"] | sc-<%= project.name %> |
     Then the step should succeed
     Given I obtain test data file "storage/misc/pvc.json"
     When I run oc create over "pvc.json" replacing paths:
-      | ["metadata"]["name"] | mypvc2 |
+      | ["metadata"]["name"]         | mypvc2                 |
+      | ["spec"]["storageClassName"] | sc-<%= project.name %> |
     Then the step should succeed
 
     Given I switch to cluster admin pseudo user
@@ -111,12 +116,14 @@ Feature: storage security check
     And the output should contain "Hello OpenShift Storage"
 
     # keep the parameters for 3.11 cases can be run.
+    @rosa @osd_ccs @aro
     @gcp-ipi
     @gcp-upi
     Examples:
       | case_id          | storage_type      | volume_name | type |
       | OCP-9700:Storage | gcePersistentDisk | pdName      | gce  | # @case_id OCP-9700
 
+    @rosa @osd_ccs @aro
     @aws-ipi
     @aws-upi
     Examples:
@@ -125,6 +132,7 @@ Feature: storage security check
 
     @openstack-ipi
     @openstack-upi
+    @hypershift-hosted
     Examples:
       | case_id          | storage_type | volume_name | type   |
       | OCP-9721:Storage | cinder       | volumeID    | cinder | # @case_id OCP-9721
@@ -133,13 +141,17 @@ Feature: storage security check
   # @case_id OCP-9709
   @admin
   @smoke
-  @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
-  @vsphere-ipi @openstack-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
-  @vsphere-upi @openstack-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
+  @4.16 @4.15 @4.14 @4.13 @4.12 @4.11 @4.10 @4.9 @4.8 @4.7 @4.6
+  @rosa @osd_ccs @aro
+  @vsphere-ipi @openstack-ipi @nutanix-ipi @ibmcloud-ipi @gcp-ipi @baremetal-ipi @azure-ipi @aws-ipi @alicloud-ipi
+  @vsphere-upi @openstack-upi @nutanix-upi @ibmcloud-upi @gcp-upi @baremetal-upi @azure-upi @aws-upi @alicloud-upi
   @upgrade-sanity
   @singlenode
   @proxy @noproxy @disconnected @connected
-  @heterogeneous @arm64 @amd64
+  @s390x @ppc64le @heterogeneous @arm64 @amd64
+  @hypershift-hosted
+  @critical
+  @storage
   Scenario: OCP-9709:Storage secret volume security check
     Given I have a project with proper privilege
     Given I obtain test data file "storage/secret/secret.yaml"
